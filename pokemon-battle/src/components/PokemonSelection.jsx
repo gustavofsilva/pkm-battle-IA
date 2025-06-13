@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './PokemonSelection.css'; // Import the new CSS
 
 const AVAILABLE_POKEMON = [
   { id: 1, name: 'Bulbasaur', type: 'Grass/Poison', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png' },
@@ -11,73 +12,66 @@ const AVAILABLE_POKEMON = [
   { id: 74, name: 'Geodude', type: 'Rock/Ground', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png' },
   { id: 92, name: 'Gastly', type: 'Ghost/Poison', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/92.png' },
   { id: 133, name: 'Eevee', type: 'Normal', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
-  // Add more if desired, up to a reasonable number for display
+  { id: 143, name: 'Snorlax', type: 'Normal', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/143.png' },
+  { id: 150, name: 'Mewtwo', type: 'Psychic', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png' },
 ];
 
-const MAX_TEAM_SIZE = 6;
+const DEFAULT_MAX_TEAM_SIZE = 6;
 
-// Renamed onSelectionConfirmed to onTeamConfirmed for clarity
-function PokemonSelection({ onTeamConfirmed, playerId, gameId, gameData, isLoading: propIsLoading }) {
-  const [selectedTeam, setSelectedTeam] = useState([]); // Array of Pokemon objects
+function PokemonSelection({ onTeamConfirmed, playerId, gameData, isLoading: propIsLoading }) {
+  const [selectedTeam, setSelectedTeam] = useState([]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // State for search term
 
+  const gameMaxTeamSize = gameData?.maxTeamSize || DEFAULT_MAX_TEAM_SIZE;
   const currentPlayerInGame = gameData?.players?.find(p => p.id === playerId);
-  // Check if the player's party is selected and has members on the backend
-  const hasPlayerConfirmedPartyBackend = !!currentPlayerInGame?.hasSelectedParty && currentPlayerInGame?.party?.length > 0;
+  const hasPlayerConfirmedPartyBackend = !!currentPlayerInGame?.hasSelectedParty && (currentPlayerInGame?.party?.length > 0 || gameMaxTeamSize === 0) ;
 
   useEffect(() => {
-    // If gameData shows this player has already selected their party,
-    // update local selection to reflect that.
     if (hasPlayerConfirmedPartyBackend && currentPlayerInGame.party) {
-        const confirmedPartyDetails = currentPlayerInGame.party.map(p => {
-            // Find the full details from AVAILABLE_POKEMON to ensure consistency (e.g. sprite)
-            return AVAILABLE_POKEMON.find(ap => ap.name === p.details.name) || p.details; // Fallback to details if not in AVAILABLE_POKEMON
+        const confirmedPartyDetails = currentPlayerInGame.party.map(p_backend => {
+            return AVAILABLE_POKEMON.find(ap => ap.name === p_backend.details.name) || p_backend.details;
         });
         setSelectedTeam(confirmedPartyDetails);
-    } else {
-        setSelectedTeam([]); // Reset if not confirmed or party is empty
+    } else if (!hasPlayerConfirmedPartyBackend) {
+        setSelectedTeam([]);
     }
   }, [hasPlayerConfirmedPartyBackend, currentPlayerInGame]);
 
-
   const handleSelectPokemon = (pokemon) => {
     if (hasPlayerConfirmedPartyBackend) return;
-
     setError('');
     const isAlreadySelected = selectedTeam.find(p => p.id === pokemon.id);
-
     if (isAlreadySelected) {
       setSelectedTeam(selectedTeam.filter(p => p.id !== pokemon.id));
     } else {
-      if (selectedTeam.length < MAX_TEAM_SIZE) {
+      if (selectedTeam.length < gameMaxTeamSize) {
         setSelectedTeam([...selectedTeam, pokemon]);
       } else {
-        setError(`You can only select up to ${MAX_TEAM_SIZE} Pokemon.`);
+        setError(`You can only select up to ${gameMaxTeamSize} Pokemon.`);
       }
     }
   };
 
   const handleConfirmTeam = async () => {
-    if (selectedTeam.length === 0) {
-      setError(`Please select at least 1 Pokemon for your team.`);
+    if (selectedTeam.length === 0 && gameMaxTeamSize > 0) {
+      setError(`Please select at least 1 Pokemon for your team (up to ${gameMaxTeamSize}).`);
       return;
     }
-    if (selectedTeam.length > MAX_TEAM_SIZE) { // Should not happen with UI checks, but good validation
-        setError(`Your team cannot exceed ${MAX_TEAM_SIZE} Pokemon.`);
+    if (selectedTeam.length > gameMaxTeamSize) {
+        setError(`Your team cannot exceed ${gameMaxTeamSize} Pokemon.`);
         return;
     }
     if (hasPlayerConfirmedPartyBackend) {
         setError("You have already confirmed your team.");
         return;
     }
-
     const teamToConfirmNames = selectedTeam.map(p => p.name);
-    console.log(`Player ${playerId} confirming team: ${teamToConfirmNames.join(', ')} for game ${gameId}`);
     setIsSubmitting(true);
     setError('');
     try {
-      await onTeamConfirmed(teamToConfirmNames); // Pass array of names
+      await onTeamConfirmed(teamToConfirmNames);
     } catch (err) {
       setError(err.message || 'Failed to confirm team selection.');
     } finally {
@@ -87,88 +81,110 @@ function PokemonSelection({ onTeamConfirmed, playerId, gameId, gameData, isLoadi
 
   const isLoading = propIsLoading || isSubmitting;
 
-  const renderSelectedTeamUI = (teamArray, isConfirmedView = false) => (
-    <div style={{ marginBottom: '20px', padding: '10px', border: '1px solid #eee', borderRadius: '5px', background: '#f9f9f9' }}>
-      <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
-        {isConfirmedView ? "Your Confirmed Team" : `Your Team (${teamArray.length}/${MAX_TEAM_SIZE})`}
-      </h3>
-      {teamArray.length === 0 && !isConfirmedView ? (
-        <p>No Pokemon selected yet. Click on a Pokemon below to add to your team.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {teamArray.map((p, index) => (
-            <li key={p.id || p.details?.id || index} style={{ margin: '5px', padding: '10px', border: '1px solid #4CAF50', borderRadius: '5px', textAlign: 'center', width: '100px' }}>
-              <img src={p.sprite || p.details?.sprite} alt={p.name || p.details?.name} style={{ width: '50px', height: '50px' }} />
-              <p style={{ margin: '5px 0 0', fontSize: '12px' }}>{p.name || p.details?.name}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+  const filteredPokemonList = AVAILABLE_POKEMON.filter(pokemon =>
+    pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (!gameData) {
+    return <div className="pokemon-selection-overlay"><div className="pokemon-selection-container"><p>Loading game data...</p></div></div>;
+  }
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: 'auto', padding: '20px' }}>
-      <h2 style={{ textAlign: 'center', color: '#333' }}>
-        {hasPlayerConfirmedPartyBackend ? 'Your Team is Selected!' : `Select Your Team (1-${MAX_TEAM_SIZE} Pokemon)`}
-      </h2>
-      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+    <div className="pokemon-selection-overlay">
+      <div className="pokemon-selection-container">
+        <h2>
+          {hasPlayerConfirmedPartyBackend ? 'Your Team is Selected!' : `Select Your Team (1-${gameMaxTeamSize} Pokemon)`}
+        </h2>
+        {error && <p className="pokemon-selection-error">{error}</p>}
 
-      {hasPlayerConfirmedPartyBackend && currentPlayerInGame?.party ? (
-        renderSelectedTeamUI(currentPlayerInGame.party, true)
-      ) : (
-        renderSelectedTeamUI(selectedTeam)
-      )}
+        {hasPlayerConfirmedPartyBackend && currentPlayerInGame?.party ? (
+            <div className="confirmed-party-display">
+                <h3>Your Confirmed Team:</h3>
+                <ul className="confirmed-party-list">
+                {currentPlayerInGame.party.map((p, index) => (
+                    <li key={p.details.id || index} className="confirmed-party-item">
+                    <img src={p.details.sprite} alt={p.details.name} />
+                    <p>{p.details.name}</p>
+                    </li>
+                ))}
+                </ul>
+            </div>
+        ) : (
+          <div className="selection-main-area">
+            <div className="available-pokemon-panel">
+              <h3>Available Pokemon</h3>
+              <input
+                type="text"
+                placeholder="Search Pokemon..."
+                className="pokemon-search-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={hasPlayerConfirmedPartyBackend}
+              />
+              <div className="available-pokemon-list">
+                {filteredPokemonList.map(pokemon => {
+                  const isSelected = selectedTeam.find(p => p.id === pokemon.id);
+                  const isMaxReached = selectedTeam.length >= gameMaxTeamSize;
+                  const isDisabled = hasPlayerConfirmedPartyBackend || (isMaxReached && !isSelected);
 
-      {!hasPlayerConfirmedPartyBackend && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '20px', opacity: hasPlayerConfirmedPartyBackend ? 0.5 : 1, pointerEvents: hasPlayerConfirmedPartyBackend ? 'none' : 'auto' }}>
-            {AVAILABLE_POKEMON.map(pokemon => (
-              <div
-                key={pokemon.id}
-                onClick={() => handleSelectPokemon(pokemon)}
-                style={{
-                  padding: '10px',
-                  border: selectedTeam.find(p => p.id === pokemon.id) ? '3px solid #2ecc71' : '1px solid #ddd',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  cursor: hasPlayerConfirmedPartyBackend ? 'not-allowed' : 'pointer',
-                  transition: 'transform 0.1s, box-shadow 0.2s, border-color 0.2s',
-                  boxShadow: selectedTeam.find(p => p.id === pokemon.id) ? '0 0 12px rgba(46, 204, 113, 0.6)' : '0 2px 4px rgba(0,0,0,0.05)',
-                  backgroundColor: hasPlayerConfirmedPartyBackend ? '#f0f0f0' : '#fff',
-                  opacity: (selectedTeam.length >= MAX_TEAM_SIZE && !selectedTeam.find(p => p.id === pokemon.id)) ? 0.6 : 1, // Dim if max reached and not selected
-                }}
-                onMouseOver={e => { if (!hasPlayerConfirmedPartyBackend) e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseOut={e => { if (!hasPlayerConfirmedPartyBackend) e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <img src={pokemon.sprite} alt={pokemon.name} style={{ width: '70px', height: '70px', marginBottom: '5px' }} />
-                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>{pokemon.name}</p>
-                <p style={{ margin: '5px 0 0', fontSize: '10px', color: '#555' }}>{pokemon.type}</p>
+                  let cardClass = "pokemon-card-select";
+                  if (isSelected) cardClass += " selected";
+                  if (isDisabled && !isSelected) cardClass += " disabled";
+                  if (isMaxReached && !isSelected && !hasPlayerConfirmedPartyBackend) cardClass += " max-reached";
+
+                  return (
+                    <div
+                      key={pokemon.id}
+                      className={cardClass}
+                      onClick={() => !isDisabled && handleSelectPokemon(pokemon)}
+                    >
+                      <img src={pokemon.sprite} alt={pokemon.name} />
+                      <p className="name">{pokemon.name}</p>
+                      <p className="type">{pokemon.type}</p>
+                    </div>
+                  );
+                })}
+                 {filteredPokemonList.length === 0 && searchTerm && (
+                    <p className="no-results-message">No Pokemon found matching "{searchTerm}".</p>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
 
-          <button
-            onClick={handleConfirmTeam}
-            disabled={isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend}
-            style={{
-              display: 'block',
-              width: 'calc(100% - 40px)',
-              padding: '15px',
-              margin: '30px auto 0',
-              backgroundColor: (isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend) ? '#ccc' : '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              fontSize: '18px',
-              cursor: (isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {isLoading ? 'Confirming Team...' : `Confirm Team (${selectedTeam.length}/${MAX_TEAM_SIZE})`}
-          </button>
-        </>
-      )}
+            <div className="selected-team-panel">
+              <h3>Your Team ({selectedTeam.length}/{gameMaxTeamSize})</h3>
+              <div className="selected-team-slots">
+                {[...Array(gameMaxTeamSize)].map((_, i) => {
+                  const pokemon = selectedTeam[i];
+                  return (
+                    <div key={i} className={`team-slot ${pokemon ? 'filled' : ''}`}>
+                      {pokemon ? (
+                        <>
+                          <img src={pokemon.sprite} alt={pokemon.name} />
+                          <p className="name">{pokemon.name}</p>
+                        </>
+                      ) : (
+                        <p className="empty-text">Slot {i+1}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!hasPlayerConfirmedPartyBackend && (
+          <div className="confirm-selection-button-container">
+            <button
+              onClick={handleConfirmTeam}
+              disabled={isLoading || selectedTeam.length === 0 || selectedTeam.length > gameMaxTeamSize || hasPlayerConfirmedPartyBackend}
+              className="confirm-selection-button"
+            >
+              {isLoading ? 'Confirming Team...' : `Confirm Team (${selectedTeam.length}/${gameMaxTeamSize})`}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

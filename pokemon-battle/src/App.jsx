@@ -3,10 +3,11 @@ import axios from 'axios';
 import './App.css';
 import PokemonSelection from './components/PokemonSelection';
 import BattleUI from './components/BattleUI';
-import PokemonSwitchUI from './components/PokemonSwitchUI'; // Import the new component
+import PokemonSwitchUI from './components/PokemonSwitchUI';
 
 const API_BASE_URL = 'http://localhost:3000';
 const WS_BASE_URL = 'ws://localhost:3000';
+const ABSOLUTE_MAX_TEAM_SIZE = 6;
 
 function App() {
   const [gameState, setGameState] = useState('initial');
@@ -18,6 +19,9 @@ function App() {
   const [isWsLoading, setIsWsLoading] = useState(false);
   const [gameData, setGameData] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [newGameMaxTeamSize, setNewGameMaxTeamSize] = useState(ABSOLUTE_MAX_TEAM_SIZE);
+  const [newGameBattleType, setNewGameBattleType] = useState('1v1');
+  const [copyButtonText, setCopyButtonText] = useState('Copy Game ID');
 
   const updateFullGameState = (newGameData, sourceMessage = "") => {
     console.log(`[StateUpdate] Source: ${sourceMessage}`, newGameData);
@@ -26,10 +30,9 @@ function App() {
 
     let statusMessage = "";
     const currentPlayer = newGameData.players?.find(p => p.id === playerId);
-    const opponentPlayer = newGameData.players?.find(p => p.id !== playerId); // Added for clarity
+    const opponentPlayer = newGameData.players?.find(p => p.id !== playerId);
     const currentPlayerPartySelected = !!currentPlayer?.hasSelectedParty;
-    const opponentPlayerPartySelected = !!opponentPlayer?.hasSelectedParty; // Added for clarity
-
+    const opponentPlayerPartySelected = !!opponentPlayer?.hasSelectedParty;
 
     if (sourceMessage === "WebSocket Game Update") {
         statusMessage = `Game state: ${newGameData.state}.`;
@@ -37,19 +40,21 @@ function App() {
         statusMessage = sourceMessage || `Game state: ${newGameData.state}.`;
     }
 
+    const teamSizeForMessage = newGameData.maxTeamSize || ABSOLUTE_MAX_TEAM_SIZE;
+
     if (newGameData.state === 'battle') {
-      statusMessage = `Battle ongoing! Turn: ${newGameData.turn === playerId ? 'Your' : "Opponent's"} turn.`;
+      statusMessage = `Battle ongoing! Turn: ${newGameData.turn === playerId ? 'Your' : "Opponent's"} turn. (Team Size: ${teamSizeForMessage})`;
     } else if (newGameData.state === 'selecting_pokemon') {
       if (currentPlayerPartySelected && !opponentPlayerPartySelected) {
-        statusMessage = "Your team is confirmed! Waiting for opponent to select their team...";
+        statusMessage = `Your team (max ${teamSizeForMessage}) is confirmed! Waiting for opponent...`;
       } else if (!currentPlayerPartySelected) {
-        statusMessage = "Select your team of Pokemon.";
+        statusMessage = `Select your team (up to ${teamSizeForMessage} Pokemon).`;
       } else {
-        statusMessage = "Both players have selected teams! Starting battle soon...";
+        statusMessage = `Both players selected teams (max ${teamSizeForMessage})! Starting battle...`;
       }
-       if (newGameData.players.length < 2 && !currentPlayerPartySelected) statusMessage = "Waiting for opponent to join...";
+       if (newGameData.players.length < 2 && !currentPlayerPartySelected) statusMessage = `Waiting for opponent to join (Game for ${teamSizeForMessage} Pokemon teams).`;
     } else if (newGameData.state === 'waiting_for_opponent') {
-        statusMessage = `Game ID: ${newGameData.id}. Waiting for opponent to join.`;
+        statusMessage = `Game ID: ${newGameData.id} (Team Size: ${teamSizeForMessage}). Waiting for opponent to join.`;
     } else if (newGameData.state === 'waiting_for_switch') {
         if (newGameData.turn === playerId) {
             statusMessage = "Your Pokemon fainted! You need to switch to a new Pokemon.";
@@ -70,24 +75,21 @@ function App() {
     setIsWsLoading(false);
   };
 
-  useEffect(() => {
+  useEffect(() => { /* ... existing useEffect for socket handlers ... */
     if (!socket) {
       if (isWsLoading) setIsWsLoading(false);
       return;
     }
-
     socket.onopen = () => {
       console.log(`[WebSocket] Connected for game ${gameId}, player ${playerId}`);
       setMessage("WebSocket connected. Waiting for initial game data...");
       setIsWsLoading(false);
     };
-
     socket.onmessage = (event) => {
       console.log('[WebSocket] Raw message:', event.data);
       try {
         const data = JSON.parse(event.data);
         console.log('[WebSocket] Parsed message:', data);
-
         if (data.type === 'gameStateUpdate') {
           updateFullGameState(data.payload, "WebSocket Game Update");
         } else if (data.type === 'connection_ack') {
@@ -103,18 +105,16 @@ function App() {
         setError("Malformed data from server.");
       }
     };
-
     socket.onclose = (event) => {
       console.log(`[WebSocket] Disconnected. Code: ${event.code}, Reason: ${event.reason || 'N/A'}`);
       if (gameId && gameState !== 'initial' && gameState !== 'finished' && !event.wasClean) {
           setError("WebSocket connection lost. Game may be interrupted.");
       } else if (event.wasClean && (gameState !== 'initial' && gameState !== 'finished')) {
-          setMessage("WebSocket connection closed.");
+          // setMessage("WebSocket connection closed."); // Can be too noisy if setSocket(null) triggers it often
       }
       setIsWsLoading(false);
       setSocket(null);
     };
-
     socket.onerror = (err) => {
       console.error('[WebSocket] Error:', err.message || 'Unknown WS error');
       setError("WebSocket connection error. Try reconnecting or reset.");
@@ -122,7 +122,7 @@ function App() {
     };
   }, [socket, gameId, playerId, gameState]);
 
-  const connectWebSocket = (currentGId, currentPId) => {
+  const connectWebSocket = (currentGId, currentPId) => { /* ... existing connectWebSocket ... */
     if (!currentGId || !currentPId) {
       console.log('[WebSocket] Connect: gameId or playerId missing.'); return;
     }
@@ -139,28 +139,30 @@ function App() {
     setSocket(new WebSocket(socketUrl));
   };
 
-  useEffect(() => {
+  useEffect(() => { /* ... existing main cleanup useEffect ... */
     const s = socket;
     return () => { if (s) s.close(1000, "Component unmounting"); };
   }, [socket]);
 
-
-  const createNewGame = async () => {
+  const createNewGame = async () => { /* ... existing createNewGame ... */
     setIsLoading(true); setError(''); setMessage('Creating new game...');
     resetGame(false);
 
     try {
-      const httpResponse = await axios.post(`${API_BASE_URL}/game`);
+      const httpResponse = await axios.post(`${API_BASE_URL}/game`, {
+        settings: { maxTeamSize: newGameMaxTeamSize }
+      });
       const newGameId = httpResponse.data.gameId;
+      const actualMaxTeamSize = httpResponse.data.settings?.maxTeamSize || ABSOLUTE_MAX_TEAM_SIZE;
       const newPlayerId = 'player1';
 
       setGameId(newGameId);
       setPlayerId(newPlayerId);
-      console.log("Game created via HTTP:", newGameId, "Player ID:", newPlayerId);
+      setMessage(`Game ${newGameId} created (Team Size: ${actualMaxTeamSize}). Waiting for server connection...`);
+      console.log("Game created via HTTP:", httpResponse.data);
 
       const joinResponse = await axios.post(`${API_BASE_URL}/game/${newGameId}/join`, { playerId: newPlayerId });
       console.log("Creator joined game via HTTP:", joinResponse.data);
-      setMessage(`Game ${newGameId} created. Waiting for server connection...`);
       connectWebSocket(newGameId, newPlayerId);
     } catch (err) {
       console.error("Error creating/joining game:", err);
@@ -169,7 +171,7 @@ function App() {
     }
   };
 
-  const joinGame = async (gameIdToJoin, newPlayerId) => {
+  const joinGame = async (gameIdToJoin, newPlayerId) => { /* ... existing joinGame ... */
     if (!gameIdToJoin) {
       setError("Please enter a Game ID."); setIsLoading(false); return;
     }
@@ -183,7 +185,11 @@ function App() {
     try {
       const response = await axios.post(`${API_BASE_URL}/game/${gameIdToJoin}/join`, { playerId: newPlayerId });
       console.log("Game joined via HTTP:", response.data);
-      setMessage(`Successfully joined game ${gameIdToJoin}. Waiting for server connection...`);
+      let joinMsg = `Successfully joined game ${gameIdToJoin}. Waiting for server connection...`;
+      if(response.data.maxTeamSize) {
+        joinMsg = `Joined game ${gameIdToJoin} (Team Size: ${response.data.maxTeamSize}). Connecting...`;
+      }
+      setMessage(joinMsg);
       connectWebSocket(gameIdToJoin, newPlayerId);
     } catch (err) {
       console.error(`Error joining game ${gameIdToJoin}:`, err);
@@ -192,7 +198,7 @@ function App() {
     }
   };
 
-  const fetchGameStateHTTP = async (currentGID) => {
+  const fetchGameStateHTTP = async (currentGID) => { /* ... existing fetchGameStateHTTP ... */
     if (!currentGID || !playerId) {
       setError("Cannot refresh: Game ID or Player ID is missing."); setIsLoading(false); return;
     }
@@ -212,7 +218,7 @@ function App() {
     }
   };
 
-  const handleTeamSelected = async (selectedTeamNames) => {
+  const handleTeamSelected = async (selectedTeamNames) => { /* ... existing handleTeamSelected ... */
     if (!gameId || !playerId || !selectedTeamNames || selectedTeamNames.length === 0) {
       setError('Game/Player ID or team not set/empty.'); return;
     }
@@ -230,7 +236,7 @@ function App() {
     }
   };
 
-  const handleAttack = async () => {
+  const handleAttack = async () => { /* ... existing handleAttack ... */
     if (!gameId || !playerId || (gameData && gameData.turn !== playerId)) {
       setError('Not your turn or game not ready.'); return;
     }
@@ -244,7 +250,7 @@ function App() {
     }
   };
 
-  const handleSwitchPokemon = (newActivePokemonIndex) => {
+  const handleSwitchPokemon = (newActivePokemonIndex) => { /* ... existing handleSwitchPokemon ... */
     if (socket && socket.readyState === WebSocket.OPEN) {
         console.log(`[WS Send] Switching to Pokemon at index: ${newActivePokemonIndex}`);
         socket.send(JSON.stringify({
@@ -252,16 +258,30 @@ function App() {
             payload: { newActivePokemonIndex }
         }));
         setMessage("Attempting to switch Pokemon...");
-        // Optional: Add a short isLoading for this action if desired
     } else {
         setError("WebSocket not connected. Cannot switch Pokemon.");
     }
   };
 
+  const handleCopyGameId = () => {
+    if (!gameId) {
+        setError('No Game ID to copy.');
+        return;
+    }
+    navigator.clipboard.writeText(gameId).then(() => {
+        setCopyButtonText('Copied!');
+        setTimeout(() => setCopyButtonText('Copy Game ID'), 2000); // Reset after 2s
+    }).catch(err => {
+        console.error('Failed to copy Game ID: ', err);
+        setError('Failed to copy Game ID. Please copy manually.');
+        setCopyButtonText('Copy Failed');
+        setTimeout(() => setCopyButtonText('Copy Game ID'), 2000);
+    });
+  };
 
   const [joinGameIdInput, setJoinGameIdInput] = useState('');
 
-  const resetGame = (fullResetSocket = true) => {
+  const resetGame = (fullResetSocket = true) => { /* ... existing resetGame ... */
     if (fullResetSocket && socket) socket.close(1000, "Game reset by user");
     if (fullResetSocket) setSocket(null);
     setGameState('initial');
@@ -273,34 +293,45 @@ function App() {
     setJoinGameIdInput('');
     setIsLoading(false);
     setIsWsLoading(false);
+    setNewGameMaxTeamSize(ABSOLUTE_MAX_TEAM_SIZE);
+    setNewGameBattleType('1v1');
+    setCopyButtonText('Copy Game ID'); // Reset copy button text
   };
 
-  const manualConnectButton = (
+  const manualConnectButton = ( /* ... existing manualConnectButton ... */
     <button onClick={() => fetchGameStateHTTP(gameId)} disabled={isWsLoading || isLoading}>
       {isWsLoading ? 'Connecting...' : 'Reconnect WS / Refresh via HTTP'}
     </button>
   );
 
   const currentPlayer = gameData?.players?.find(p => p.id === playerId);
-  const opponentPlayer = gameData?.players?.find(p => p.id !== playerId);
-  const currentPlayerPartySelected = !!currentPlayer?.hasSelectedParty;
-
   let selectionPhaseGlobalMessage = null;
-  if (gameState === 'selecting_pokemon' && gameData) {
+  if (gameState === 'selecting_pokemon' && gameData) { /* ... existing selectionPhaseGlobalMessage logic ... */
+    const opponentPlayer = gameData?.players?.find(p => p.id !== playerId);
+    const currentPlayerPartySelected = !!currentPlayer?.hasSelectedParty;
     const opponentPlayerPartySelected = !!opponentPlayer?.hasSelectedParty;
+    const teamSizeMsg = `(max ${gameData.maxTeamSize || ABSOLUTE_MAX_TEAM_SIZE})`;
+
     if (currentPlayerPartySelected && !opponentPlayerPartySelected) {
-      selectionPhaseGlobalMessage = "Your team is confirmed! Waiting for opponent to select their team...";
+      selectionPhaseGlobalMessage = `Your team ${teamSizeMsg} is confirmed! Waiting for opponent...`;
     } else if (currentPlayerPartySelected && opponentPlayerPartySelected) {
-      selectionPhaseGlobalMessage = "Both players have selected teams! Preparing for battle...";
+      selectionPhaseGlobalMessage = `Both players selected teams ${teamSizeMsg}! Preparing for battle...`;
     }
   }
-
 
   return (
     <div className="App">
       <header className="App-header">
         <h1>Pokemon Battle Game</h1>
-        {gameId && <p className="game-info-header">Game: {gameId} | Player: {playerId} | Socket: {socket?.readyState ?? 'N/A'} {isWsLoading ? '(Connecting...)' : ''}</p>}
+        {gameId && (
+          <div className="game-info-header">
+            <span>Game ID: {gameId}</span>
+            <button onClick={handleCopyGameId} className="copy-game-id-button" disabled={copyButtonText !== 'Copy Game ID'}>
+              {copyButtonText}
+            </button>
+            <span> | Player: {playerId} | Socket: {socket?.readyState ?? 'N/A'} {isWsLoading ? '(Connecting...)' : ''}</span>
+          </div>
+        )}
       </header>
       <main>
         {(isLoading || isWsLoading) && <p className="loading-message">{message || (isWsLoading ? 'Connecting to server...' : 'Loading game data...')}</p>}
@@ -308,11 +339,39 @@ function App() {
         {!isLoading && !isWsLoading && message && !error && <p className="message">{message}</p>}
         {selectionPhaseGlobalMessage && !error && <p className="selection-status-message">{selectionPhaseGlobalMessage}</p>}
 
-
         {gameState === 'initial' && !gameData && (
           <div className="initial-actions">
-            <button onClick={createNewGame} disabled={isLoading || isWsLoading}>Create New Game</button>
+            <div className="game-settings-form">
+              <h3>New Game Settings</h3>
+              <div className="setting-item">
+                <label htmlFor="teamSize">Number of Pokemon (1-{ABSOLUTE_MAX_TEAM_SIZE}): </label>
+                <select
+                  id="teamSize"
+                  value={newGameMaxTeamSize}
+                  onChange={(e) => setNewGameMaxTeamSize(parseInt(e.target.value, 10))}
+                  disabled={isLoading || isWsLoading}
+                >
+                  {[...Array(ABSOLUTE_MAX_TEAM_SIZE).keys()].map(i => (
+                    <option key={i+1} value={i+1}>{i+1}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="setting-item">
+                <label htmlFor="battleType">Battle Type: </label>
+                <select
+                  id="battleType"
+                  value={newGameBattleType}
+                  onChange={(e) => setNewGameBattleType(e.target.value)}
+                  disabled={isLoading || isWsLoading}
+                >
+                  <option value="1v1">1v1</option>
+                  <option value="2v2" disabled>2v2 (Coming soon!)</option>
+                </select>
+              </div>
+            </div>
+            <button onClick={createNewGame} disabled={isLoading || isWsLoading} style={{marginTop:'10px'}}>Create New Game</button>
             <hr style={{margin: '20px 0'}}/>
+            <h4>Or Join Existing Game</h4>
             <div>
               <input type="text" placeholder="Enter Game ID to Join" value={joinGameIdInput} onChange={(e) => setJoinGameIdInput(e.target.value)} disabled={isLoading || isWsLoading}/>
               <button onClick={() => joinGame(joinGameIdInput, 'player2')} disabled={isLoading || isWsLoading || !joinGameIdInput}>Join Game</button>
@@ -326,6 +385,7 @@ function App() {
 
         {(gameState === 'waiting_for_opponent' || gameState === 'opponent_disconnected') && gameData && (
           <div>
+            {/* The message state now includes Game ID when waiting */}
             {(!socket || (socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING)) && manualConnectButton}
           </div>
         )}
@@ -340,7 +400,6 @@ function App() {
           />
         )}
 
-        {/* Render PokemonSwitchUI when needed */}
         {gameData && gameState === 'waiting_for_switch' && gameData.turn === playerId && currentPlayer && (
             <PokemonSwitchUI
                 playerParty={currentPlayer.party}
