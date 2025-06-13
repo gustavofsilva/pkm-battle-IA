@@ -1,0 +1,108 @@
+.switch-ui-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Ensure it's on top */
+  padding: 20px;
+}
+
+.switch-ui-modal {
+  background-color: white;
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  text-align: center;
+  max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.switch-ui-modal h2 {
+  margin-top: 0;
+  color: #c0392b; /* Reddish color for urgency */
+}
+
+.switch-ui-modal p {
+  margin-bottom: 20px;
+  font-size: 1.1em;
+}
+
+.pokemon-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 15px;
+  justify-content: center;
+}
+
+.pokemon-option {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  background-color: #f9f9f9;
+}
+
+.pokemon-option:hover:not(.disabled) {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-color: #3498db; /* Blue border on hover */
+}
+
+.pokemon-option.disabled {
+  background-color: #e0e0e0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pokemon-option.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #ddd;
+}
+
+.pokemon-option.just-fainted,
+.pokemon-option.active-cannot-switch { /* Style for the one that just fainted or is active but shouldn't be chosen */
+  border-color: #c0392b;
+  opacity: 0.7;
+  cursor: not-allowed; /* Should already be handled by disabled but good to reinforce */
+}
+
+
+.pokemon-sprite-option {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 8px;
+  image-rendering: pixelated;
+  background-color: #eee;
+  border-radius: 4px;
+}
+
+.pokemon-name-option {
+  font-weight: bold;
+  font-size: 1em;
+  margin-bottom: 4px;
+}
+
+.pokemon-hp-option {
+  font-size: 0.85em;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.pokemon-status-fainted {
+  font-size: 0.8em;
+  color: #c0392b;
+  font-style: italic;
+}
+.pokemon-status-active {
+  font-size: 0.8em;
+  color: #7f8c8d;
+  font-style: italic;
+}

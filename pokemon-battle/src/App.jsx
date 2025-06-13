@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 import PokemonSelection from './components/PokemonSelection';
 import BattleUI from './components/BattleUI';
+import PokemonSwitchUI from './components/PokemonSwitchUI'; // Import the new component
 
 const API_BASE_URL = 'http://localhost:3000';
 const WS_BASE_URL = 'ws://localhost:3000';
@@ -24,34 +25,37 @@ function App() {
     setGameState(newGameData.state);
 
     let statusMessage = "";
+    const currentPlayer = newGameData.players?.find(p => p.id === playerId);
+    const opponentPlayer = newGameData.players?.find(p => p.id !== playerId); // Added for clarity
+    const currentPlayerPartySelected = !!currentPlayer?.hasSelectedParty;
+    const opponentPlayerPartySelected = !!opponentPlayer?.hasSelectedParty; // Added for clarity
+
+
     if (sourceMessage === "WebSocket Game Update") {
-        statusMessage = `Game state: ${newGameData.state}.`; // Base message from WS
+        statusMessage = `Game state: ${newGameData.state}.`;
     } else {
         statusMessage = sourceMessage || `Game state: ${newGameData.state}.`;
     }
 
-    // More specific messages based on state
-    const currentPlayer = newGameData.players?.find(p => p.id === playerId);
-    const opponentPlayer = newGameData.players?.find(p => p.id !== playerId);
-    const currentPlayerSelected = !!currentPlayer?.pokemon;
-    const opponentPlayerSelected = !!opponentPlayer?.pokemon;
-
     if (newGameData.state === 'battle') {
-      statusMessage = `Battle ongoing! Turn: ${newGameData.turn}.`;
+      statusMessage = `Battle ongoing! Turn: ${newGameData.turn === playerId ? 'Your' : "Opponent's"} turn.`;
     } else if (newGameData.state === 'selecting_pokemon') {
-      if (currentPlayerSelected && !opponentPlayerSelected) {
-        statusMessage = "Selection Confirmed! Waiting for opponent to select their Pokemon...";
-      } else if (!currentPlayerSelected) {
-        statusMessage = "Select your Pokemon.";
-      } else { // Both selected, should transition to battle soon
-        statusMessage = "Both players selected! Starting battle...";
+      if (currentPlayerPartySelected && !opponentPlayerPartySelected) {
+        statusMessage = "Your team is confirmed! Waiting for opponent to select their team...";
+      } else if (!currentPlayerPartySelected) {
+        statusMessage = "Select your team of Pokemon.";
+      } else {
+        statusMessage = "Both players have selected teams! Starting battle soon...";
       }
-       if (newGameData.players.length < 2 && !currentPlayerSelected) statusMessage = "Waiting for opponent to join...";
-    } else if (newGameData.state === 'waiting_for_other_player_selection') {
-        // This state might be redundant if selecting_pokemon handles it well with player checks
-        statusMessage = "Waiting for opponent to select Pokemon.";
+       if (newGameData.players.length < 2 && !currentPlayerPartySelected) statusMessage = "Waiting for opponent to join...";
     } else if (newGameData.state === 'waiting_for_opponent') {
         statusMessage = `Game ID: ${newGameData.id}. Waiting for opponent to join.`;
+    } else if (newGameData.state === 'waiting_for_switch') {
+        if (newGameData.turn === playerId) {
+            statusMessage = "Your Pokemon fainted! You need to switch to a new Pokemon.";
+        } else {
+            statusMessage = `Opponent's Pokemon fainted! Waiting for opponent (${newGameData.turn}) to switch.`;
+        }
     } else if (newGameData.state === 'finished') {
       if (newGameData.winner === playerId) {
         statusMessage = "Congratulations, you won!";
@@ -74,8 +78,8 @@ function App() {
 
     socket.onopen = () => {
       console.log(`[WebSocket] Connected for game ${gameId}, player ${playerId}`);
-      setMessage(prev => `WebSocket connected. Waiting for initial game data...`);
-      setIsWsLoading(false); // No longer "loading" the connection itself
+      setMessage("WebSocket connected. Waiting for initial game data...");
+      setIsWsLoading(false);
     };
 
     socket.onmessage = (event) => {
@@ -88,7 +92,6 @@ function App() {
           updateFullGameState(data.payload, "WebSocket Game Update");
         } else if (data.type === 'connection_ack') {
           console.log('[WebSocket] Connection acknowledged by server:', data.message);
-          // setMessage(prev => `Server: ${data.message}. ${prev}`); // Can be noisy
         } else if (data.type === 'error') {
           console.error('[WebSocket] Error message from server:', data.message);
           setError(`Server error: ${data.message}`);
@@ -117,15 +120,14 @@ function App() {
       setError("WebSocket connection error. Try reconnecting or reset.");
       setIsWsLoading(false);
     };
-  }, [socket, gameId, playerId, gameState]); // Added gameState to dependencies
+  }, [socket, gameId, playerId, gameState]);
 
   const connectWebSocket = (currentGId, currentPId) => {
     if (!currentGId || !currentPId) {
       console.log('[WebSocket] Connect: gameId or playerId missing.'); return;
     }
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) && socket.url.includes(`gameId=${currentGId}&playerId=${currentPId}`)) {
-      console.log('[WebSocket] Already connected/connecting with same parameters.');
-      if(socket.readyState === WebSocket.OPEN) setIsWsLoading(false); // Ensure loading is false if already open
+      if(socket.readyState === WebSocket.OPEN) setIsWsLoading(false);
       return;
     }
     if (socket) socket.close(1000, "New connection requested");
@@ -190,8 +192,8 @@ function App() {
     }
   };
 
-  const fetchGameStateHTTP = async (currentGID) => { // Primarily for manual reconnect/refresh
-    if (!currentGID || !playerId) { // Added playerId check
+  const fetchGameStateHTTP = async (currentGID) => {
+    if (!currentGID || !playerId) {
       setError("Cannot refresh: Game ID or Player ID is missing."); setIsLoading(false); return;
     }
     setIsLoading(true); setError('');
@@ -200,7 +202,7 @@ function App() {
       const response = await axios.get(`${API_BASE_URL}/game/${currentGID}`);
       updateFullGameState(response.data, "HTTP state refresh.");
       if (response.data.state !== 'initial' && response.data.state !== 'finished') {
-        connectWebSocket(currentGID, playerId); // Ensure WS is connected
+        connectWebSocket(currentGID, playerId);
       }
     } catch (err) {
       console.error("Error fetching game state via HTTP:", err);
@@ -210,21 +212,21 @@ function App() {
     }
   };
 
-  const handlePokemonSelected = async (selectedPokemon) => {
-    if (!gameId || !playerId || !selectedPokemon) {
-      setError('Game/Player ID or Pokemon not set.'); return;
+  const handleTeamSelected = async (selectedTeamNames) => {
+    if (!gameId || !playerId || !selectedTeamNames || selectedTeamNames.length === 0) {
+      setError('Game/Player ID or team not set/empty.'); return;
     }
     setError('');
-    setMessage(`Sending selection: ${selectedPokemon.name}...`); // Optimistic message
+    setMessage(`Confirming your team: ${selectedTeamNames.join(', ')}...`);
     try {
-      await axios.post(`${API_BASE_URL}/game/${gameId}/select-pokemon`,
-        { playerId: playerId, pokemonName: selectedPokemon.name }
-      );
-      console.log(`Selection of ${selectedPokemon.name} sent. Waiting for WS update.`);
-      // Message will be updated by WS gameStateUpdate
+      await axios.post(`${API_BASE_URL}/game/${gameId}/select-pokemon`, {
+        playerId: playerId,
+        pokemonNames: selectedTeamNames
+      });
+      console.log(`Team selection (${selectedTeamNames.join(', ')}) sent. Waiting for WS update.`);
     } catch (err) {
-      console.error("Error confirming Pokemon selection:", err);
-      setError(err.response?.data?.message || 'Failed to confirm selection.');
+      console.error("Error confirming team selection:", err);
+      setError(err.response?.data?.message || 'Failed to confirm team selection.');
     }
   };
 
@@ -233,7 +235,6 @@ function App() {
       setError('Not your turn or game not ready.'); return;
     }
     setError('');
-    // setMessage("Sending attack..."); // Optional optimistic
     try {
       await axios.post(`${API_BASE_URL}/game/${gameId}/attack`, { playerId: playerId });
       console.log('Attack action sent. Waiting for WS update.');
@@ -242,6 +243,21 @@ function App() {
       setError(err.response?.data?.message || 'Failed to perform attack.');
     }
   };
+
+  const handleSwitchPokemon = (newActivePokemonIndex) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log(`[WS Send] Switching to Pokemon at index: ${newActivePokemonIndex}`);
+        socket.send(JSON.stringify({
+            type: 'switchPokemon',
+            payload: { newActivePokemonIndex }
+        }));
+        setMessage("Attempting to switch Pokemon...");
+        // Optional: Add a short isLoading for this action if desired
+    } else {
+        setError("WebSocket not connected. Cannot switch Pokemon.");
+    }
+  };
+
 
   const [joinGameIdInput, setJoinGameIdInput] = useState('');
 
@@ -265,20 +281,18 @@ function App() {
     </button>
   );
 
-  // Determine selection status for UI messages
   const currentPlayer = gameData?.players?.find(p => p.id === playerId);
   const opponentPlayer = gameData?.players?.find(p => p.id !== playerId);
-  const currentPlayerSelected = !!currentPlayer?.pokemon;
-  const opponentPlayerSelected = !!opponentPlayer?.pokemon;
+  const currentPlayerPartySelected = !!currentPlayer?.hasSelectedParty;
 
-  let selectionPhaseMessage = null;
+  let selectionPhaseGlobalMessage = null;
   if (gameState === 'selecting_pokemon' && gameData) {
-    if (currentPlayerSelected && !opponentPlayerSelected) {
-      selectionPhaseMessage = "Your selection is confirmed! Waiting for opponent...";
-    } else if (currentPlayerSelected && opponentPlayerSelected) {
-      selectionPhaseMessage = "Both players have selected! Starting battle...";
+    const opponentPlayerPartySelected = !!opponentPlayer?.hasSelectedParty;
+    if (currentPlayerPartySelected && !opponentPlayerPartySelected) {
+      selectionPhaseGlobalMessage = "Your team is confirmed! Waiting for opponent to select their team...";
+    } else if (currentPlayerPartySelected && opponentPlayerPartySelected) {
+      selectionPhaseGlobalMessage = "Both players have selected teams! Preparing for battle...";
     }
-    // If !currentPlayerSelected, the PokemonSelection component shows "Select Your Pokemon"
   }
 
 
@@ -289,11 +303,10 @@ function App() {
         {gameId && <p className="game-info-header">Game: {gameId} | Player: {playerId} | Socket: {socket?.readyState ?? 'N/A'} {isWsLoading ? '(Connecting...)' : ''}</p>}
       </header>
       <main>
-        {/* Combined Loading/Status Area */}
         {(isLoading || isWsLoading) && <p className="loading-message">{message || (isWsLoading ? 'Connecting to server...' : 'Loading game data...')}</p>}
         {error && <p className="error-message">Error: {error}</p>}
         {!isLoading && !isWsLoading && message && !error && <p className="message">{message}</p>}
-        {selectionPhaseMessage && !error && <p className="selection-status-message">{selectionPhaseMessage}</p>}
+        {selectionPhaseGlobalMessage && !error && <p className="selection-status-message">{selectionPhaseGlobalMessage}</p>}
 
 
         {gameState === 'initial' && !gameData && (
@@ -311,30 +324,33 @@ function App() {
             <p className="loading-message">{message || "Loading game details..."}</p>
         )}
 
-        {/* Waiting for opponent to join (before selection starts) or if opponent disconnected */}
         {(gameState === 'waiting_for_opponent' || gameState === 'opponent_disconnected') && gameData && (
           <div>
-            {/* Main message will cover this from updateFullGameState */}
             {(!socket || (socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING)) && manualConnectButton}
           </div>
         )}
 
         {gameState === 'selecting_pokemon' && gameData && gameId && playerId && (
           <PokemonSelection
-            onSelectionConfirmed={handlePokemonSelected}
+            onTeamConfirmed={handleTeamSelected}
             playerId={playerId}
             gameId={gameId}
-            gameData={gameData} // Pass gameData down
-            isLoading={isLoading}
+            gameData={gameData}
+            isLoading={isLoading || isWsLoading}
           />
         )}
 
-        {/* This state might be covered by selecting_pokemon + player checks */}
-        {/* {gameState === 'waiting_for_other_player_selection' && gameData && ( ... )} */}
-
+        {/* Render PokemonSwitchUI when needed */}
+        {gameData && gameState === 'waiting_for_switch' && gameData.turn === playerId && currentPlayer && (
+            <PokemonSwitchUI
+                playerParty={currentPlayer.party}
+                activePokemonIndex={currentPlayer.activePokemonIndex}
+                onPokemonSwitchSelected={handleSwitchPokemon}
+            />
+        )}
 
         {(gameState === 'battle' || gameState === 'finished') && gameData && playerId && (
-          <BattleUI gameData={gameData} playerId={playerId} onAttack={handleAttack} isLoading={isLoading} />
+          <BattleUI gameData={gameData} playerId={playerId} onAttack={handleAttack} isLoading={isLoading || isWsLoading} />
         )}
 
         {gameState !== 'initial' && (

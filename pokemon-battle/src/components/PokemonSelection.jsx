@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-// Hardcoded list of available Pokemon for now
 const AVAILABLE_POKEMON = [
   { id: 1, name: 'Bulbasaur', type: 'Grass/Poison', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png' },
   { id: 4, name: 'Charmander', type: 'Fire', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png' },
@@ -12,64 +11,75 @@ const AVAILABLE_POKEMON = [
   { id: 74, name: 'Geodude', type: 'Rock/Ground', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png' },
   { id: 92, name: 'Gastly', type: 'Ghost/Poison', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/92.png' },
   { id: 133, name: 'Eevee', type: 'Normal', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
+  // Add more if desired, up to a reasonable number for display
 ];
 
-const MAX_SELECTION_UI = 6; // UI can allow selecting more for future team features
-const POKEMON_FOR_BATTLE = 1; // Currently, only 1 Pokemon is sent to backend
+const MAX_TEAM_SIZE = 6;
 
-function PokemonSelection({ onSelectionConfirmed, playerId, gameId, gameData, isLoading: propIsLoading }) {
-  const [selectedPokemonLocal, setSelectedPokemonLocal] = useState([]); // Stores array of Pokemon objects
+// Renamed onSelectionConfirmed to onTeamConfirmed for clarity
+function PokemonSelection({ onTeamConfirmed, playerId, gameId, gameData, isLoading: propIsLoading }) {
+  const [selectedTeam, setSelectedTeam] = useState([]); // Array of Pokemon objects
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentPlayerInGame = gameData?.players?.find(p => p.id === playerId);
-  const hasPlayerConfirmedBackend = !!currentPlayerInGame?.pokemon; // Check if backend has pokemon assigned
+  // Check if the player's party is selected and has members on the backend
+  const hasPlayerConfirmedPartyBackend = !!currentPlayerInGame?.hasSelectedParty && currentPlayerInGame?.party?.length > 0;
 
   useEffect(() => {
-    // If gameData shows this player has already selected (e.g., on reconnect/refresh),
+    // If gameData shows this player has already selected their party,
     // update local selection to reflect that.
-    if (hasPlayerConfirmedBackend && currentPlayerInGame.pokemon) {
-        // Find the equivalent from AVAILABLE_POKEMON to ensure we have all local details like sprite
-        const confirmedPokemonDetails = AVAILABLE_POKEMON.find(p => p.name === currentPlayerInGame.pokemon.name);
-        if (confirmedPokemonDetails) {
-            setSelectedPokemonLocal([confirmedPokemonDetails]);
-        }
+    if (hasPlayerConfirmedPartyBackend && currentPlayerInGame.party) {
+        const confirmedPartyDetails = currentPlayerInGame.party.map(p => {
+            // Find the full details from AVAILABLE_POKEMON to ensure consistency (e.g. sprite)
+            return AVAILABLE_POKEMON.find(ap => ap.name === p.details.name) || p.details; // Fallback to details if not in AVAILABLE_POKEMON
+        });
+        setSelectedTeam(confirmedPartyDetails);
+    } else {
+        setSelectedTeam([]); // Reset if not confirmed or party is empty
     }
-  }, [hasPlayerConfirmedBackend, currentPlayerInGame]);
+  }, [hasPlayerConfirmedPartyBackend, currentPlayerInGame]);
 
 
   const handleSelectPokemon = (pokemon) => {
-    if (hasPlayerConfirmedBackend) return; // Don't allow changes if already confirmed on backend
+    if (hasPlayerConfirmedPartyBackend) return;
 
     setError('');
-    // For current game logic, we only care about 1 pokemon for battle
-    // So, selecting a new one will just replace the old one in the local selection array.
-    if (selectedPokemonLocal.find(p => p.id === pokemon.id)) {
-      setSelectedPokemonLocal([]); // Deselect if clicking the same one
+    const isAlreadySelected = selectedTeam.find(p => p.id === pokemon.id);
+
+    if (isAlreadySelected) {
+      setSelectedTeam(selectedTeam.filter(p => p.id !== pokemon.id));
     } else {
-      setSelectedPokemonLocal([pokemon]); // Select the new one (max 1 for battle)
+      if (selectedTeam.length < MAX_TEAM_SIZE) {
+        setSelectedTeam([...selectedTeam, pokemon]);
+      } else {
+        setError(`You can only select up to ${MAX_TEAM_SIZE} Pokemon.`);
+      }
     }
   };
 
-  const handleConfirmSelection = async () => {
-    if (selectedPokemonLocal.length === 0) {
-      setError(`Please select ${POKEMON_FOR_BATTLE} Pokemon.`);
+  const handleConfirmTeam = async () => {
+    if (selectedTeam.length === 0) {
+      setError(`Please select at least 1 Pokemon for your team.`);
       return;
     }
-    if (hasPlayerConfirmedBackend) {
-        setError("You have already confirmed your selection.");
+    if (selectedTeam.length > MAX_TEAM_SIZE) { // Should not happen with UI checks, but good validation
+        setError(`Your team cannot exceed ${MAX_TEAM_SIZE} Pokemon.`);
+        return;
+    }
+    if (hasPlayerConfirmedPartyBackend) {
+        setError("You have already confirmed your team.");
         return;
     }
 
-    const pokemonToConfirm = selectedPokemonLocal[0]; // Backend expects one Pokemon for now
-    console.log(`Player ${playerId} confirming selection of ${pokemonToConfirm.name} for game ${gameId}`);
+    const teamToConfirmNames = selectedTeam.map(p => p.name);
+    console.log(`Player ${playerId} confirming team: ${teamToConfirmNames.join(', ')} for game ${gameId}`);
     setIsSubmitting(true);
     setError('');
     try {
-      await onSelectionConfirmed(pokemonToConfirm); // Prop function from App.jsx
-      // No need to set hasPlayerConfirmedBackend here, it will come via gameData prop update
+      await onTeamConfirmed(teamToConfirmNames); // Pass array of names
     } catch (err) {
-      setError(err.message || 'Failed to confirm selection.');
+      setError(err.message || 'Failed to confirm team selection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -77,56 +87,60 @@ function PokemonSelection({ onSelectionConfirmed, playerId, gameId, gameData, is
 
   const isLoading = propIsLoading || isSubmitting;
 
+  const renderSelectedTeamUI = (teamArray, isConfirmedView = false) => (
+    <div style={{ marginBottom: '20px', padding: '10px', border: '1px solid #eee', borderRadius: '5px', background: '#f9f9f9' }}>
+      <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
+        {isConfirmedView ? "Your Confirmed Team" : `Your Team (${teamArray.length}/${MAX_TEAM_SIZE})`}
+      </h3>
+      {teamArray.length === 0 && !isConfirmedView ? (
+        <p>No Pokemon selected yet. Click on a Pokemon below to add to your team.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {teamArray.map((p, index) => (
+            <li key={p.id || p.details?.id || index} style={{ margin: '5px', padding: '10px', border: '1px solid #4CAF50', borderRadius: '5px', textAlign: 'center', width: '100px' }}>
+              <img src={p.sprite || p.details?.sprite} alt={p.name || p.details?.name} style={{ width: '50px', height: '50px' }} />
+              <p style={{ margin: '5px 0 0', fontSize: '12px' }}>{p.name || p.details?.name}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: 'auto', padding: '20px' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: 'auto', padding: '20px' }}>
       <h2 style={{ textAlign: 'center', color: '#333' }}>
-        {hasPlayerConfirmedBackend ? 'Your Pokemon is Selected!' : `Select Your Pokemon (Choose ${POKEMON_FOR_BATTLE} for Battle)`}
+        {hasPlayerConfirmedPartyBackend ? 'Your Team is Selected!' : `Select Your Team (1-${MAX_TEAM_SIZE} Pokemon)`}
       </h2>
       {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
 
-      {hasPlayerConfirmedBackend && currentPlayerInGame?.pokemon && (
-        <div style={{ textAlign: 'center', margin: '20px 0', padding: '15px', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '5px'}}>
-          <h3 style={{color: '#2e7d32'}}>Selection Confirmed!</h3>
-          <p>You have selected: <strong>{currentPlayerInGame.pokemon.name}</strong></p>
-          <img src={currentPlayerInGame.pokemon.sprite || AVAILABLE_POKEMON.find(p => p.name === currentPlayerInGame.pokemon.name)?.sprite} alt={currentPlayerInGame.pokemon.name} style={{width: '96px', height: '96px'}}/>
-        </div>
+      {hasPlayerConfirmedPartyBackend && currentPlayerInGame?.party ? (
+        renderSelectedTeamUI(currentPlayerInGame.party, true)
+      ) : (
+        renderSelectedTeamUI(selectedTeam)
       )}
 
-      {!hasPlayerConfirmedBackend && (
+      {!hasPlayerConfirmedPartyBackend && (
         <>
-          <div style={{ marginBottom: '20px', padding: '10px', border: '1px solid #eee', borderRadius: '5px', background: '#f9f9f9' }}>
-            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>Your Choice for Battle:</h3>
-            {selectedPokemonLocal.length === 0 ? (
-              <p>No Pokemon selected yet. Click on a Pokemon below to select it.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, display: 'flex', justifyContent: 'center' }}>
-                {selectedPokemonLocal.map(p => (
-                  <li key={p.id} style={{ margin: '5px', padding: '10px', border: '1px solid #4CAF50', borderRadius: '5px', textAlign: 'center', width: '100px' }}>
-                    <img src={p.sprite} alt={p.name} style={{ width: '50px', height: '50px' }} />
-                    <p style={{ margin: '5px 0 0', fontSize: '12px' }}>{p.name}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', opacity: hasPlayerConfirmedBackend ? 0.5 : 1, pointerEvents: hasPlayerConfirmedBackend ? 'none' : 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '20px', opacity: hasPlayerConfirmedPartyBackend ? 0.5 : 1, pointerEvents: hasPlayerConfirmedPartyBackend ? 'none' : 'auto' }}>
             {AVAILABLE_POKEMON.map(pokemon => (
               <div
                 key={pokemon.id}
                 onClick={() => handleSelectPokemon(pokemon)}
                 style={{
                   padding: '10px',
-                  border: selectedPokemonLocal.find(p => p.id === pokemon.id) ? '2px solid #4CAF50' : '1px solid #ddd',
+                  border: selectedTeam.find(p => p.id === pokemon.id) ? '3px solid #2ecc71' : '1px solid #ddd',
                   borderRadius: '8px',
                   textAlign: 'center',
-                  cursor: hasPlayerConfirmedBackend ? 'not-allowed' : 'pointer',
-                  transition: 'transform 0.1s, box-shadow 0.1s',
-                  boxShadow: selectedPokemonLocal.find(p => p.id === pokemon.id) ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
-                  backgroundColor: hasPlayerConfirmedBackend ? '#f0f0f0' : '#fff'
+                  cursor: hasPlayerConfirmedPartyBackend ? 'not-allowed' : 'pointer',
+                  transition: 'transform 0.1s, box-shadow 0.2s, border-color 0.2s',
+                  boxShadow: selectedTeam.find(p => p.id === pokemon.id) ? '0 0 12px rgba(46, 204, 113, 0.6)' : '0 2px 4px rgba(0,0,0,0.05)',
+                  backgroundColor: hasPlayerConfirmedPartyBackend ? '#f0f0f0' : '#fff',
+                  opacity: (selectedTeam.length >= MAX_TEAM_SIZE && !selectedTeam.find(p => p.id === pokemon.id)) ? 0.6 : 1, // Dim if max reached and not selected
                 }}
-                onMouseOver={e => { if (!hasPlayerConfirmedBackend) e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseOut={e => { if (!hasPlayerConfirmedBackend) e.currentTarget.style.transform = 'scale(1)'; }}
+                onMouseOver={e => { if (!hasPlayerConfirmedPartyBackend) e.currentTarget.style.transform = 'scale(1.05)'; }}
+                onMouseOut={e => { if (!hasPlayerConfirmedPartyBackend) e.currentTarget.style.transform = 'scale(1)'; }}
               >
                 <img src={pokemon.sprite} alt={pokemon.name} style={{ width: '70px', height: '70px', marginBottom: '5px' }} />
                 <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>{pokemon.name}</p>
@@ -134,33 +148,26 @@ function PokemonSelection({ onSelectionConfirmed, playerId, gameId, gameData, is
               </div>
             ))}
           </div>
-        </>
-      )}
 
-      {!hasPlayerConfirmedBackend && (
-        <button
-          onClick={handleConfirmSelection}
-          disabled={isLoading || selectedPokemonLocal.length === 0 || hasPlayerConfirmedBackend}
-          style={{
-            display: 'block',
-            width: 'calc(100% - 40px)',
-            padding: '15px',
-            margin: '30px auto 0',
-            backgroundColor: (isLoading || selectedPokemonLocal.length === 0 || hasPlayerConfirmedBackend) ? '#ccc' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            fontSize: '18px',
-            cursor: (isLoading || selectedPokemonLocal.length === 0 || hasPlayerConfirmedBackend) ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {isLoading ? 'Confirming...' : `Confirm Selection (${selectedPokemonLocal.length > 0 ? selectedPokemonLocal[0].name : 'None'})`}
-        </button>
-      )}
-      {!hasPlayerConfirmedBackend && (
-        <p style={{textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#777'}}>
-          Note: The backend currently supports one Pokémon for battle. Your first choice will be used.
-        </p>
+          <button
+            onClick={handleConfirmTeam}
+            disabled={isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend}
+            style={{
+              display: 'block',
+              width: 'calc(100% - 40px)',
+              padding: '15px',
+              margin: '30px auto 0',
+              backgroundColor: (isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend) ? '#ccc' : '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              fontSize: '18px',
+              cursor: (isLoading || selectedTeam.length === 0 || hasPlayerConfirmedPartyBackend) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isLoading ? 'Confirming Team...' : `Confirm Team (${selectedTeam.length}/${MAX_TEAM_SIZE})`}
+          </button>
+        </>
       )}
     </div>
   );
