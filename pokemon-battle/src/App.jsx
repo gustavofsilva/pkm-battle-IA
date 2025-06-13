@@ -5,8 +5,8 @@ import PokemonSelection from './components/PokemonSelection';
 import BattleUI from './components/BattleUI';
 import PokemonSwitchUI from './components/PokemonSwitchUI';
 
-const API_BASE_URL = 'http://localhost:3000';
-const WS_BASE_URL = 'ws://localhost:3000';
+const API_BASE_URL = 'https://pkm-battle-ia.onrender.com';
+const WS_BASE_URL = 'wss://pkm-battle-ia.onrender.com';
 const ABSOLUTE_MAX_TEAM_SIZE = 6;
 
 function App() {
