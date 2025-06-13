@@ -4,9 +4,15 @@
   background-color: #f0f0f0;
   border-radius: 10px;
   box-shadow: 0 0 15px rgba(0,0,0,0.1);
-  max-width: 700px;
+  max-width: 800px; /* Increased max-width for party display */
   margin: 20px auto;
   text-align: center;
+}
+
+.battle-loading-message {
+  padding: 20px;
+  font-size: 1.2em;
+  color: #555;
 }
 
 .battle-title {
@@ -17,15 +23,15 @@
 .turn-indicator {
   font-size: 1.2em;
   font-weight: bold;
-  color: #d35400; /* Orange color for turns */
-  margin-bottom: 20px;
+  color: #d35400;
+  margin-bottom: 15px;
 }
 
 .pokemon-display-area {
   display: flex;
   justify-content: space-around;
-  align-items: flex-start; /* Align items to the top */
-  margin-bottom: 30px;
+  align-items: flex-start;
+  margin-bottom: 25px;
 }
 
 .pokemon-card {
@@ -33,58 +39,70 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 15px;
-  width: 45%; /* Each card takes about 45% of the width */
+  width: 48%; /* Adjusted width */
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center items in card */
 }
 
-.pokemon-card.active-turn {
-  border-color: #3498db; /* Blue border for active turn */
-  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
-  transform: scale(1.02);
+.pokemon-card.active-turn-battle { /* More specific class for battle turn */
+  border-color: #2980b9; /* Darker blue for active turn */
+  box-shadow: 0 0 12px rgba(41, 128, 185, 0.6);
+  transform: scale(1.03);
 }
 
 .pokemon-card h3 {
   margin-top: 0;
-  margin-bottom: 5px;
+  margin-bottom: 10px; /* Increased margin */
   font-size: 1.1em;
   color: #555;
 }
 
-.pokemon-card h4 { /* Pokemon Name */
+.pokemon-card h4 {
   margin-top: 5px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 1.3em;
   color: #333;
 }
 
+.pokemon-status-ingame {
+    font-size: 0.7em;
+    font-style: italic;
+    color: #666;
+    vertical-align: middle;
+}
+
 .pokemon-sprite {
-  width: 96px; /* Standard sprite size */
-  height: 96px;
-  margin-bottom: 10px;
-  image-rendering: pixelated; /* Keep sprites crisp */
-  background-color: #eee;
+  width: 110px; /* Slightly larger sprite */
+  height: 110px;
+  margin-bottom: 8px;
+  image-rendering: pixelated;
+  background-color: #f0f0f0; /* Light background for sprite */
+  border: 1px solid #ccc;
   border-radius: 5px;
 }
 
 .hp-bar-container {
   background-color: #e0e0e0;
   border-radius: 5px;
-  height: 20px;
+  height: 22px; /* Slightly thicker */
+  width: 80%; /* Relative to card width */
   margin-bottom: 5px;
-  overflow: hidden; /* Ensures the inner bar doesn't overflow */
-  border: 1px solid #ccc;
+  overflow: hidden;
+  border: 1px solid #bbb;
 }
 
 .hp-bar {
   height: 100%;
-  background-color: #2ecc71; /* Green for HP */
-  border-radius: 3px; /* Slightly less than container for nice effect */
+  background-color: #2ecc71;
+  border-radius: 3px;
   transition: width 0.5s ease-in-out;
 }
 
 .hp-bar.opponent-hp-bar {
-  background-color: #e74c3c; /* Red for opponent HP, or keep green if preferred */
+  background-color: #e74c3c;
 }
 
 .hp-text {
@@ -97,19 +115,20 @@
 .stats-text {
   font-size: 0.8em;
   color: #666;
+  margin-bottom: 10px; /* Added margin */
 }
 
 .vs-separator {
   display: flex;
   align-items: center;
-  font-size: 2em;
+  font-size: 2.5em; /* Larger VS */
   font-weight: bold;
-  color: #7f8c8d; /* Greyish color for VS */
-  padding: 0 10px; /* Add some padding */
+  color: #7f8c8d;
+  padding: 0 5px; /* Reduced padding as cards are wider */
 }
 
 .attack-button {
-  background-color: #e74c3c; /* Red color for attack */
+  background-color: #e74c3c;
   color: white;
   border: none;
   padding: 12px 25px;
@@ -118,31 +137,126 @@
   cursor: pointer;
   transition: background-color 0.2s;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-top: 10px; /* Added margin */
 }
 
-.attack-button:hover {
-  background-color: #c0392b; /* Darker red on hover */
+.attack-button:hover:not(:disabled) {
+  background-color: #c0392b;
 }
 
 .attack-button:disabled {
-  background-color: #bdc3c7; /* Grey when disabled */
+  background-color: #bdc3c7;
   cursor: not-allowed;
 }
 
 .game-over-message {
   margin-top: 20px;
-  padding: 15px;
+  padding: 20px; /* Increased padding */
   background-color: #ecf0f1;
-  border-radius: 5px;
+  border-radius: 8px; /* Softer radius */
   border: 1px solid #bdc3c7;
 }
 
 .game-over-message h3 {
   color: #2c3e50;
   margin-bottom: 10px;
+  font-size: 1.5em; /* Larger game over text */
 }
 
-.game-over-message p {
-  font-size: 1.1em;
-  color: #34495e;
+.opponent-disconnected-message {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #fff3cd; /* Light yellow */
+    border: 1px solid #ffeeba;
+    color: #856404;
+    border-radius: 5px;
+}
+
+.pokemon-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 150px; /* Adjust as needed */
+    color: #999;
+    font-style: italic;
+}
+
+
+/* Party Status Display */
+.party-status-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px; /* Space below pokeballs */
+  height: 30px; /* Fixed height for alignment */
+}
+
+.pokeball-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  margin: 0 3px;
+  background-color: #fff; /* Default empty or base color */
+  position: relative;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Simulating Pokeball design */
+.pokeball-icon::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px); /* Center line */
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #333;
+}
+
+.pokeball-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px; /* Inner circle */
+  height: 6px;
+  border-radius: 50%;
+  background-color: #fff;
+  border: 1px solid #333;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+}
+
+.pokeball-icon.healthy {
+  background-color: #e74c3c; /* Top half red */
+  background: linear-gradient(to bottom, #e74c3c 0%, #e74c3c 48%, #fff 48%, #fff 52%, #fff 52%, #fff 100%);
+}
+.pokeball-icon.healthy::after {
+   background-color: #fff; /* White button for healthy */
+}
+
+
+.pokeball-icon.fainted {
+  background-color: #7f8c8d; /* Grey for fainted */
+  opacity: 0.6;
+}
+.pokeball-icon.fainted::after {
+  background-color: #bdc3c7; /* Darker grey button for fainted */
+}
+
+.pokeball-icon.empty {
+  background-color: #ecf0f1; /* Light grey for empty slot */
+  border-color: #bdc3c7;
+}
+.pokeball-icon.empty::before,
+.pokeball-icon.empty::after {
+  border-color: #bdc3c7;
+}
+
+
+.pokeball-icon.active {
+  border-color: #f1c40f; /* Gold border for active */
+  box-shadow: 0 0 8px #f1c40f;
+  transform: scale(1.2); /* Slightly larger */
 }
