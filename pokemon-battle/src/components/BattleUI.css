@@ -4,7 +4,7 @@
   background-color: #f0f0f0;
   border-radius: 10px;
   box-shadow: 0 0 15px rgba(0,0,0,0.1);
-  max-width: 800px;
+  max-width: 800px; /* Increased max-width for party display */
   margin: 20px auto;
   text-align: center;
 }
@@ -27,20 +27,6 @@
   margin-bottom: 15px;
 }
 
-.battle-log-message {
-  background-color: #e9ecef;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  padding: 10px;
-  margin-bottom: 15px;
-  font-style: italic;
-  color: #495057;
-  text-align: left; /* Better for longer messages */
-  max-height: 100px; /* Limit height */
-  overflow-y: auto; /* Allow scroll for long logs */
-}
-
-
 .pokemon-display-area {
   display: flex;
   justify-content: space-around;
@@ -53,23 +39,23 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 15px;
-  width: 48%;
+  width: 48%; /* Adjusted width */
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: center; /* Center items in card */
 }
 
-.pokemon-card.active-turn-battle {
-  border-color: #2980b9;
+.pokemon-card.active-turn-battle { /* More specific class for battle turn */
+  border-color: #2980b9; /* Darker blue for active turn */
   box-shadow: 0 0 12px rgba(41, 128, 185, 0.6);
   transform: scale(1.03);
 }
 
 .pokemon-card h3 {
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 10px; /* Increased margin */
   font-size: 1.1em;
   color: #555;
 }
@@ -79,44 +65,21 @@
   margin-bottom: 8px;
   font-size: 1.3em;
   color: #333;
-  display: flex; /* For aligning status indicator */
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap; /* Allow status to wrap if name is long */
 }
 
 .pokemon-status-ingame {
     font-size: 0.7em;
     font-style: italic;
     color: #666;
-    margin-left: 5px; /* Space from name/status-indicator */
+    vertical-align: middle;
 }
-
-.status-indicator {
-  display: inline-block;
-  padding: 2px 6px;
-  font-size: 0.7em;
-  font-weight: bold;
-  border-radius: 4px;
-  margin-left: 8px;
-  text-transform: uppercase;
-  color: white;
-}
-
-.status-indicator.status-poison { background-color: #A040A0; } /* Purple */
-.status-indicator.status-burn { background-color: #F08030; } /* Orange/Red */
-.status-indicator.status-paralysis { background-color: #F8D030; color: #333; } /* Yellow */
-.status-indicator.status-sleep { background-color: #888; } /* Grey */
-.status-indicator.status-freeze { background-color: #98D8D8; color: #333; } /* Light Blue */
-/* Add more statuses as needed */
-
 
 .pokemon-sprite {
-  width: 110px;
+  width: 110px; /* Slightly larger sprite */
   height: 110px;
   margin-bottom: 8px;
   image-rendering: pixelated;
-  background-color: #f0f0f0;
+  background-color: #f0f0f0; /* Light background for sprite */
   border: 1px solid #ccc;
   border-radius: 5px;
 }
@@ -124,8 +87,8 @@
 .hp-bar-container {
   background-color: #e0e0e0;
   border-radius: 5px;
-  height: 22px;
-  width: 80%;
+  height: 22px; /* Slightly thicker */
+  width: 80%; /* Relative to card width */
   margin-bottom: 5px;
   overflow: hidden;
   border: 1px solid #bbb;
@@ -152,46 +115,148 @@
 .stats-text {
   font-size: 0.8em;
   color: #666;
-  margin-bottom: 10px;
-  line-height: 1.4; /* Improve readability of multi-line stats */
+  margin-bottom: 10px; /* Added margin */
 }
 
-.vs-separator { /* ... (no change) ... */ }
-.move-list-container { /* ... (no change) ... */ }
-.move-list-container h4 { /* ... (no change) ... */ }
-.moves-grid { /* ... (no change) ... */ }
-.move-button { /* ... (no change) ... */ }
-.move-button:hover:not(:disabled) { /* ... (no change) ... */ }
-.move-button:active:not(:disabled) { /* ... (no change) ... */ }
-.move-button:disabled { /* ... (no change) ... */ }
-.move-name { /* ... (no change) ... */ }
-.move-details { /* ... (no change) ... */ }
-.move-button.type-normal { /* ... (no change) ... */ }
-.move-button.type-fire { /* ... (no change) ... */ }
-.move-button.type-water { /* ... (no change) ... */ }
-.move-button.type-electric { /* ... (no change) ... */ }
-.move-button.type-grass { /* ... (no change) ... */ }
-.move-button.type-ice { /* ... (no change) ... */ }
-.move-button.type-fighting { /* ... (no change) ... */ }
-.move-button.type-poison { /* ... (no change) ... */ }
-.move-button.type-ground { /* ... (no change) ... */ }
-.move-button.type-flying { /* ... (no change) ... */ }
-.move-button.type-psychic { /* ... (no change) ... */ }
-.move-button.type-bug { /* ... (no change) ... */ }
-.move-button.type-rock { /* ... (no change) ... */ }
-.move-button.type-ghost { /* ... (no change) ... */ }
-.move-button.type-dragon { /* ... (no change) ... */ }
-.move-button.type-dark { /* ... (no change) ... */ }
-.move-button.type-steel { /* ... (no change) ... */ }
-.move-button.type-fairy { /* ... (no change) ... */ }
-.game-over-message { /* ... (no change) ... */ }
-.opponent-disconnected-message { /* ... (no change) ... */ }
-.pokemon-placeholder { /* ... (no change) ... */ }
-.party-status-display { /* ... (no change) ... */ }
-.pokeball-icon { /* ... (no change) ... */ }
-.pokeball-icon::before { /* ... (no change) ... */ }
-.pokeball-icon::after { /* ... (no change) ... */ }
-.pokeball-icon.healthy { /* ... (no change) ... */ }
-.pokeball-icon.fainted { /* ... (no change) ... */ }
-.pokeball-icon.empty { /* ... (no change) ... */ }
-.pokeball-icon.active { /* ... (no change) ... */ }
+.vs-separator {
+  display: flex;
+  align-items: center;
+  font-size: 2.5em; /* Larger VS */
+  font-weight: bold;
+  color: #7f8c8d;
+  padding: 0 5px; /* Reduced padding as cards are wider */
+}
+
+.attack-button {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  font-size: 1.2em;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-top: 10px; /* Added margin */
+}
+
+.attack-button:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.attack-button:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.game-over-message {
+  margin-top: 20px;
+  padding: 20px; /* Increased padding */
+  background-color: #ecf0f1;
+  border-radius: 8px; /* Softer radius */
+  border: 1px solid #bdc3c7;
+}
+
+.game-over-message h3 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.5em; /* Larger game over text */
+}
+
+.opponent-disconnected-message {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #fff3cd; /* Light yellow */
+    border: 1px solid #ffeeba;
+    color: #856404;
+    border-radius: 5px;
+}
+
+.pokemon-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 150px; /* Adjust as needed */
+    color: #999;
+    font-style: italic;
+}
+
+
+/* Party Status Display */
+.party-status-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px; /* Space below pokeballs */
+  height: 30px; /* Fixed height for alignment */
+}
+
+.pokeball-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  margin: 0 3px;
+  background-color: #fff; /* Default empty or base color */
+  position: relative;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Simulating Pokeball design */
+.pokeball-icon::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px); /* Center line */
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #333;
+}
+
+.pokeball-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px; /* Inner circle */
+  height: 6px;
+  border-radius: 50%;
+  background-color: #fff;
+  border: 1px solid #333;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+}
+
+.pokeball-icon.healthy {
+  background-color: #e74c3c; /* Top half red */
+  background: linear-gradient(to bottom, #e74c3c 0%, #e74c3c 48%, #fff 48%, #fff 52%, #fff 52%, #fff 100%);
+}
+.pokeball-icon.healthy::after {
+   background-color: #fff; /* White button for healthy */
+}
+
+
+.pokeball-icon.fainted {
+  background-color: #7f8c8d; /* Grey for fainted */
+  opacity: 0.6;
+}
+.pokeball-icon.fainted::after {
+  background-color: #bdc3c7; /* Darker grey button for fainted */
+}
+
+.pokeball-icon.empty {
+  background-color: #ecf0f1; /* Light grey for empty slot */
+  border-color: #bdc3c7;
+}
+.pokeball-icon.empty::before,
+.pokeball-icon.empty::after {
+  border-color: #bdc3c7;
+}
+
+
+.pokeball-icon.active {
+  border-color: #f1c40f; /* Gold border for active */
+  box-shadow: 0 0 8px #f1c40f;
+  transform: scale(1.2); /* Slightly larger */
+}
