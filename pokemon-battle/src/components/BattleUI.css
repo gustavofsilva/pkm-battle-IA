@@ -1,0 +1,148 @@
+.battle-container {
+  font-family: 'Arial', sans-serif;
+  padding: 20px;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  max-width: 700px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.battle-title {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.turn-indicator {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #d35400; /* Orange color for turns */
+  margin-bottom: 20px;
+}
+
+.pokemon-display-area {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start; /* Align items to the top */
+  margin-bottom: 30px;
+}
+
+.pokemon-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  width: 45%; /* Each card takes about 45% of the width */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.pokemon-card.active-turn {
+  border-color: #3498db; /* Blue border for active turn */
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+  transform: scale(1.02);
+}
+
+.pokemon-card h3 {
+  margin-top: 0;
+  margin-bottom: 5px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+.pokemon-card h4 { /* Pokemon Name */
+  margin-top: 5px;
+  margin-bottom: 10px;
+  font-size: 1.3em;
+  color: #333;
+}
+
+.pokemon-sprite {
+  width: 96px; /* Standard sprite size */
+  height: 96px;
+  margin-bottom: 10px;
+  image-rendering: pixelated; /* Keep sprites crisp */
+  background-color: #eee;
+  border-radius: 5px;
+}
+
+.hp-bar-container {
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  height: 20px;
+  margin-bottom: 5px;
+  overflow: hidden; /* Ensures the inner bar doesn't overflow */
+  border: 1px solid #ccc;
+}
+
+.hp-bar {
+  height: 100%;
+  background-color: #2ecc71; /* Green for HP */
+  border-radius: 3px; /* Slightly less than container for nice effect */
+  transition: width 0.5s ease-in-out;
+}
+
+.hp-bar.opponent-hp-bar {
+  background-color: #e74c3c; /* Red for opponent HP, or keep green if preferred */
+}
+
+.hp-text {
+  font-size: 0.9em;
+  color: #333;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.stats-text {
+  font-size: 0.8em;
+  color: #666;
+}
+
+.vs-separator {
+  display: flex;
+  align-items: center;
+  font-size: 2em;
+  font-weight: bold;
+  color: #7f8c8d; /* Greyish color for VS */
+  padding: 0 10px; /* Add some padding */
+}
+
+.attack-button {
+  background-color: #e74c3c; /* Red color for attack */
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  font-size: 1.2em;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.attack-button:hover {
+  background-color: #c0392b; /* Darker red on hover */
+}
+
+.attack-button:disabled {
+  background-color: #bdc3c7; /* Grey when disabled */
+  cursor: not-allowed;
+}
+
+.game-over-message {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #ecf0f1;
+  border-radius: 5px;
+  border: 1px solid #bdc3c7;
+}
+
+.game-over-message h3 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.game-over-message p {
+  font-size: 1.1em;
+  color: #34495e;
+}
