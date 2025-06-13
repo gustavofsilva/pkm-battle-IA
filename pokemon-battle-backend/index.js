@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors'); // Added CORS require
 const { getPokemonDetails } = require('./pokemonData'); // Import Pokemon data handler
 
 const app = express();
@@ -8,6 +9,8 @@ const port = process.env.PORT || 3000;
 // In-memory store for game states
 const games = {};
 
+// Middleware
+app.use(cors()); // Enabled CORS for all origins
 app.use(bodyParser.json());
 
 // Route to create a new game
