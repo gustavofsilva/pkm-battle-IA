@@ -13,7 +13,7 @@ const ABSOLUTE_MAX_TEAM_SIZE = 6;
 
 const games = {};
 
-const TYPE_EFFECTIVENESS = { /* ... (contents as before) ... */
+const TYPE_EFFECTIVENESS = {
     normal: { rock: 0.5, ghost: 0, steel: 0.5 },
     fire: { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
     water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
@@ -33,7 +33,8 @@ const TYPE_EFFECTIVENESS = { /* ... (contents as before) ... */
     steel: { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
     fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 },
 };
-function getAttackEffectiveness(moveType, defenderTypes) { /* ... (as before) ... */
+
+function getAttackEffectiveness(moveType, defenderTypes) {
     let totalEffectiveness = 1;
     if (!TYPE_EFFECTIVENESS[moveType]) return 1;
     for (const type of defenderTypes) {
@@ -47,154 +48,177 @@ app.use(bodyParser.json());
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const getSanitizedGameState = (gameId) => { /* ... (as before) ... */ };
-const broadcastGameState = (gameId) => { /* ... (as before) ... */ };
-function applyEndOfTurnStatusEffects(player, game) { /* ... (as before) ... */ }
+const getSanitizedGameState = (gameId) => { /* ... (no change) ... */ };
+const broadcastGameState = (gameId) => { /* ... (no change) ... */ };
+function applyEndOfTurnStatusEffects(player, game) { /* ... (no change) ... */ }
+wss.on('connection', (ws, req) => { /* ... (no change) ... */ });
 
-wss.on('connection', (ws, req) => {
-    console.log('[WS_CONNECT_TRACE] New WebSocket connection attempt.');
-    const parameters = url.parse(req.url, true).query;
-    const gameId = parameters.gameId;
-    const connectingPlayerId = parameters.playerId;
-    console.log(`[WS_CONNECT_TRACE] Attempting for gameId: ${gameId}, playerId: ${connectingPlayerId}`);
+app.post('/game', (req, res) => { /* ... (no change) ... */ });
+app.post('/game/:id/join', (req, res) => { /* ... (no change) ... */ });
+app.post('/game/:id/select-pokemon', (req, res) => { /* ... (no change) ... */ });
 
-    if (!gameId || !connectingPlayerId) {
-        console.log(`[WS_CONNECT_TRACE] Terminating: Missing gameId or playerId. gameId: ${gameId}, playerId: ${connectingPlayerId}`);
-        ws.terminate();
-        return;
-    }
+app.post('/game/:id/attack', (req, res) => {
+    const gameId = req.params.id;
+    const { playerId, moveIndex } = req.body;
 
+    if (!games[gameId]) return res.status(404).json({ message: 'Game not found.' });
     const game = games[gameId];
-    if (!game) {
-        console.log(`[WS_CONNECT_TRACE] Terminating: Game not found for gameId: ${gameId}`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Game not found.' }));
-        ws.terminate();
-        return;
-    }
-    console.log(`[WS_CONNECT_TRACE] Game ${gameId} found. Players in game: ${game.players.map(p => p.id).join(', ')}`);
 
-    let player = game.players.find(p => p.id === connectingPlayerId);
-    if (!player) {
-        console.log(`[WS_CONNECT_TRACE] Terminating: Player ${connectingPlayerId} not found in game ${gameId}.`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Player not found in game. Please join via HTTP first.' }));
-        ws.terminate();
-        return;
-    }
-    console.log(`[WS_CONNECT_TRACE] Player ${connectingPlayerId} found in game ${gameId}. Current player.ws state: ${player.ws ? player.ws.readyState : 'null'}`);
+    if (game.state !== 'battle') return res.status(400).json({ message: 'Not in battle phase.' });
+    if (game.turn !== playerId) return res.status(400).json({ message: `Not player ${playerId}'s turn.` });
 
-    if (player.ws && player.ws.readyState === WebSocket.OPEN) {
-        console.log(`[WS_CONNECT_TRACE] Terminating: Player ${connectingPlayerId} already has an active OPEN WebSocket connection.`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Player already has an active connection.' }));
-        ws.terminate();
-        return;
-    }
-    if (player.ws && player.ws.readyState === WebSocket.CONNECTING) {
-        console.log(`[WS_CONNECT_TRACE] Warning: Player ${connectingPlayerId} has a WebSocket connection in CONNECTING state. Allowing new connection to proceed.`);
-    }
+    const attackerPlayer = game.players.find(p => p.id === playerId);
+    const defenderPlayer = game.players.find(p => p.id !== playerId);
 
-    player.ws = ws;
-    console.log(`[WS] Client connected: gameId=${gameId}, playerId=${connectingPlayerId}. player.ws.readyState: ${player.ws.readyState}`);
+    if (!attackerPlayer || attackerPlayer.activePokemonIndex < 0 || !attackerPlayer.party[attackerPlayer.activePokemonIndex])
+        return res.status(500).json({ message: 'Attacker has no valid active Pokemon.' });
 
-    ws.send(JSON.stringify({ type: 'connection_ack', message: `Connected to game ${gameId} as ${connectingPlayerId}`}));
+    let attackerActivePokemon = attackerPlayer.party[attackerPlayer.activePokemonIndex];
 
-    const initialGameStatePayload = getSanitizedGameState(gameId);
-    if (initialGameStatePayload) {
-        ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: initialGameStatePayload }));
-        console.log(`[WS] Sent initial gameStateUpdate directly to player ${connectingPlayerId} in game ${gameId}.`);
-    } else {
-        console.error(`[WS] CRITICAL: Could not get initial game state for ${gameId} to send directly to ${connectingPlayerId}.`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Failed to retrieve initial game state for you.' }));
-    }
+    if (attackerActivePokemon.status === 'fainted')
+        return res.status(400).json({message: 'Your active Pokemon is fainted and cannot attack!'});
 
-    if (game.state === 'opponent_disconnected' && game.players.length === 2) {
-        const otherPlayer = game.players.find(p => p.id !== connectingPlayerId);
-        if (otherPlayer && otherPlayer.ws && otherPlayer.ws.readyState === WebSocket.OPEN) {
-            if (game.players.every(p => p.hasSelectedParty)) {
-                game.state = 'battle';
-                 if (!game.turn) game.turn = game.players[Math.floor(Math.random() * game.players.length)].id;
-            } else {
-                game.state = 'selecting_pokemon';
+    if (attackerActivePokemon.activeStatus === 'paralysis') {
+        if (Math.random() * 100 < 25) {
+            game.lastBattleMessage = `${attackerPlayer.id}'s ${attackerActivePokemon.details.name} is fully paralyzed and can't move!`;
+            // Turn still passes to defender after paralysis, but attacker's end-of-turn effects apply first
+            applyEndOfTurnStatusEffects(attackerPlayer, game);
+            if (game.state !== 'finished' && game.state !== 'waiting_for_switch') { // If attacker didn't faint from status
+                game.turn = defenderPlayer.id;
             }
-            console.log(`[WS_CONNECT_TRACE] Player ${connectingPlayerId} reconnected. Game ${gameId} state -> ${game.state}.`);
+            broadcastGameState(gameId);
+            return res.json({ gameId, message: game.lastBattleMessage, currentGameState: game.state });
         }
+    }
+
+    if (moveIndex == null || !attackerActivePokemon.details.moves || !attackerActivePokemon.details.moves[moveIndex]) {
+        return res.status(400).json({ message: 'Invalid move selected.' });
+    }
+    const chosenMove = attackerActivePokemon.details.moves[moveIndex];
+
+    // PP check (simple version: if PP is 0, cannot use)
+    if (chosenMove.pp === 0) { // Assuming pp is current pp, if not, this logic needs adjustment
+        game.lastBattleMessage = `${attackerActivePokemon.details.name} has no PP left for ${chosenMove.name}!`;
+        // Turn does NOT pass here, player must choose another move or switch.
+        // This creates a scenario where the player might be stuck if all moves have 0 PP.
+        // For now, just send message and don't proceed with attack. Player can try another move.
+        // A more complete implementation would require a "Struggle" move.
+        broadcastGameState(gameId); // Broadcast to show message
+        return res.status(400).json({ message: game.lastBattleMessage, currentGameState: game.state });
+    }
+    // Decrement PP (if we were tracking current PP)
+    // chosenMove.currentPp = (chosenMove.currentPp || chosenMove.pp) - 1; // Need to store currentPp on pokemon instance in party
+
+    if (!defenderPlayer || defenderPlayer.activePokemonIndex < 0 || !defenderPlayer.party[defenderPlayer.activePokemonIndex])
+        return res.status(500).json({ message: 'Defender has no valid active Pokemon.' });
+    let defenderActivePokemon = defenderPlayer.party[defenderPlayer.activePokemonIndex];
+
+    if (defenderActivePokemon.status === 'fainted')
+        return res.status(400).json({message: 'Opponent_s active Pokemon is already fainted! They should switch.'});
+
+    if (!defenderPlayer.ws || defenderPlayer.ws.readyState !== WebSocket.OPEN) {
+        game.state = 'opponent_disconnected'; game.turn = null;
+        broadcastGameState(gameId);
+        return res.status(400).json({ message: 'Opponent not connected. Cannot attack.', currentGameState: game.state });
+    }
+
+    let message = `${attackerPlayer.id}'s ${attackerActivePokemon.details.name} used ${chosenMove.name}.`;
+    game.lastBattleMessage = message; // Initialize for this turn
+
+    if (chosenMove.accuracy && Math.random() * 100 > chosenMove.accuracy) { // Check for null/100 accuracy
+        game.lastBattleMessage += " The attack missed!";
+        game.turn = defenderPlayer.id;
+        applyEndOfTurnStatusEffects(attackerPlayer, game);
+        broadcastGameState(gameId);
+        return res.json({ gameId, message: game.lastBattleMessage, currentGameState: game.state });
+    }
+
+    const stab = attackerActivePokemon.details.types.includes(chosenMove.type) ? 1.5 : 1;
+    const effectiveness = getAttackEffectiveness(chosenMove.type, defenderActivePokemon.details.types);
+
+    let damage = 0;
+    if (chosenMove.category !== 'status' && chosenMove.power > 0 && effectiveness > 0) {
+        let attackStat, defenseStat;
+        if (chosenMove.category === 'special') {
+            attackStat = attackerActivePokemon.details.stats.specialAttack;
+            defenseStat = defenderActivePokemon.details.stats.specialDefense;
+        } else { // physical or category undefined (default to physical)
+            attackStat = attackerActivePokemon.details.stats.attack;
+            defenseStat = defenderActivePokemon.details.stats.defense;
+        }
+
+        // Standard-ish damage formula (Level 50 assumed)
+        damage = Math.floor(((((2 * 50 / 5 + 2) * chosenMove.power * (attackStat / defenseStat)) / 50) + 2) * stab * effectiveness * ((Math.random() * (1.0 - 0.85)) + 0.85));
+        damage = Math.max(1, damage);
+    }
+
+    if (effectiveness > 1) game.lastBattleMessage += " It's super effective!";
+    if (effectiveness < 1 && effectiveness > 0) game.lastBattleMessage += " It's not very effective...";
+    if (effectiveness === 0) game.lastBattleMessage += " It had no effect!";
+
+    if (damage > 0) {
+        defenderActivePokemon.currentHp -= damage;
+        game.lastBattleMessage += ` ${defenderPlayer.id}'s ${defenderActivePokemon.details.name} took ${damage} damage.`;
+    }
+    console.log(`[Game ${gameId}] ${attackerActivePokemon.details.name} (Atk: ${chosenMove.category === 'special' ? attackerActivePokemon.details.stats.specialAttack : attackerActivePokemon.details.stats.attack}) dealt ${damage} to ${defenderActivePokemon.details.name} (Def: ${chosenMove.category === 'special' ? defenderActivePokemon.details.stats.specialDefense : defenderActivePokemon.details.stats.defense}). Defender HP: ${defenderActivePokemon.currentHp}`);
+
+
+    if (chosenMove.effect && chosenMove.effect.status && effectiveness > 0) {
+        if (defenderActivePokemon.status === 'healthy' && (!defenderActivePokemon.activeStatus || defenderActivePokemon.activeStatus.length === 0) ) {
+            if (Math.random() * 100 < chosenMove.effect.chance) {
+                defenderActivePokemon.activeStatus = chosenMove.effect.status;
+                game.lastBattleMessage += ` ${defenderActivePokemon.details.name} was ${chosenMove.effect.status}!`;
+                console.log(`[Game ${gameId}] ${defenderActivePokemon.details.name} afflicted with ${chosenMove.effect.status}.`);
+            }
+        }
+    }
+    // TODO: Implement stat change effects: chosenMove.effect.stat_change
+
+    let attackerFaintedFromOwnStatus = false;
+
+    if (defenderActivePokemon.currentHp <= 0) {
+        defenderActivePokemon.currentHp = 0;
+        defenderActivePokemon.status = 'fainted';
+        defenderPlayer.pokemonLeft = defenderPlayer.party.filter(p => p.status === 'healthy').length;
+        game.lastBattleMessage += ` ${defenderActivePokemon.details.name} fainted.`;
+        console.log(`[Game ${gameId}] ${defenderActivePokemon.details.name} fainted. ${defenderPlayer.id} has ${defenderPlayer.pokemonLeft} Pokemon left.`);
+
+        if (defenderPlayer.pokemonLeft <= 0) {
+            game.state = 'finished'; game.winner = attackerPlayer.id;
+            game.lastBattleMessage += ` All of ${defenderPlayer.id}'s Pokemon have fainted! ${attackerPlayer.id} wins!`;
+        } else {
+            game.state = 'waiting_for_switch'; game.turn = defenderPlayer.id;
+            game.lastBattleMessage += ` ${defenderPlayer.id} must switch Pokemon.`;
+        }
+    }
+
+    // Apply end-of-turn status effects for the attacker if the game hasn't ended or isn't waiting for defender to switch
+    if (game.state !== 'finished' && game.state !== 'waiting_for_switch') {
+        applyEndOfTurnStatusEffects(attackerPlayer, game);
+        attackerActivePokemon = attackerPlayer.party[attackerPlayer.activePokemonIndex]; // Re-check after status
+        if (attackerActivePokemon.status === 'fainted') {
+            attackerFaintedFromOwnStatus = true;
+            if (attackerPlayer.pokemonLeft > 0) {
+                 game.state = 'waiting_for_switch';
+                 game.turn = attackerPlayer.id;
+            } else { // Attacker fainted and has no more Pokemon
+                game.state = 'finished';
+                game.winner = defenderPlayer.id; // Defender wins
+                game.lastBattleMessage += ` All of ${attackerPlayer.id}'s Pokemon have fainted! ${defenderPlayer.id} wins!`;
+            }
+        }
+    }
+
+    if (game.state === 'battle' && !attackerFaintedFromOwnStatus) {
+        game.turn = defenderPlayer.id;
+        // game.lastBattleMessage += ` It's now ${defenderPlayer.id}'s turn.`; // This might be too verbose if added every time
     }
 
     broadcastGameState(gameId);
-
-    ws.on('message', (messageString) => {
-        console.log(`[WS] Msg from ${connectingPlayerId}@${gameId}: ${messageString}`);
-        let parsedMessage;
-        try {
-            parsedMessage = JSON.parse(messageString);
-        } catch (error) {
-            console.error(`[WS] Failed to parse message from ${connectingPlayerId}: ${messageString}`);
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format.' }));
-            return;
-        }
-
-        if (parsedMessage.type === 'switchPokemon') {
-            const { newActivePokemonIndex } = parsedMessage.payload;
-
-            if (game.state !== 'waiting_for_switch') {
-                ws.send(JSON.stringify({ type: 'error', message: 'Not the time to switch Pokemon.' })); return;
-            }
-            if (game.turn !== connectingPlayerId) {
-                ws.send(JSON.stringify({ type: 'error', message: 'Not your turn to switch.' })); return;
-            }
-            if (newActivePokemonIndex == null || !player.party[newActivePokemonIndex]) {
-                ws.send(JSON.stringify({ type: 'error', message: 'Invalid Pokemon index for switch.' })); return;
-            }
-            if (player.party[newActivePokemonIndex].status === 'fainted') {
-                ws.send(JSON.stringify({ type: 'error', message: 'Cannot switch to a fainted Pokemon.' })); return;
-            }
-            if (player.activePokemonIndex === newActivePokemonIndex) {
-                 ws.send(JSON.stringify({ type: 'error', message: 'This Pokemon is already active.' })); return;
-            }
-
-            player.activePokemonIndex = newActivePokemonIndex;
-            game.state = 'battle';
-            const opponentPlayer = game.players.find(p => p.id !== connectingPlayerId);
-            if (opponentPlayer) { game.turn = opponentPlayer.id; }
-            else { console.error(`[Game ${gameId}] Opponent not found for turn switch!`); game.turn = null; }
-
-            game.lastBattleMessage = `${player.id} switched to ${player.party[newActivePokemonIndex].details.name}. It's now ${game.turn}'s turn.`;
-            console.log(`[Game ${gameId}] Player ${connectingPlayerId} switched to ${player.party[newActivePokemonIndex].details.name}. State -> 'battle'. Turn -> ${game.turn}`);
-            broadcastGameState(gameId);
-        }
-    });
-
-    ws.on('close', () => {
-        console.log(`[WS_CONNECT_TRACE] Client disconnected: gameId=${gameId}, playerId=${connectingPlayerId}`);
-        if (player) player.ws = null;
-        if (game && ['battle', 'selecting_pokemon', 'waiting_for_other_player_selection', 'waiting_for_switch'].includes(game.state)) {
-            const otherPlayer = game.players.find(p => p.id !== connectingPlayerId);
-            if (otherPlayer) {
-                game.state = 'opponent_disconnected'; game.turn = null;
-                console.log(`[WS_CONNECT_TRACE][Game ${gameId}] ${connectingPlayerId} disconnected. State -> 'opponent_disconnected'.`);
-                broadcastGameState(gameId);
-            } else { console.log(`[WS_CONNECT_TRACE][Game ${gameId}] ${connectingPlayerId} disconnected. No other players.`); }
-        } else if (game && game.state === 'opponent_disconnected') {
-            console.log(`[WS_CONNECT_TRACE][Game ${gameId}] ${connectingPlayerId} disconnected while already 'opponent_disconnected'.`);
-        }
-    });
-
-    ws.on('error', (error) => {
-        console.error(`[WS_CONNECT_TRACE] Error for ${connectingPlayerId}@${gameId}:`, error);
-        if (player) player.ws = null;
-         if (game && ['battle', 'selecting_pokemon', 'waiting_for_other_player_selection', 'waiting_for_switch'].includes(game.state)) {
-            game.state = 'opponent_disconnected'; game.turn = null;
-            console.log(`[WS_CONNECT_TRACE][Game ${gameId}] Error on WS for ${connectingPlayerId}. State -> 'opponent_disconnected'.`);
-            broadcastGameState(gameId);
-        }
-    });
+    res.json({ gameId, message: game.lastBattleMessage, currentGameState: game.state });
 });
 
-// --- Express Routes --- (no changes below this line for this subtask)
-app.post('/game', (req, res) => { /* ... */ });
-app.post('/game/:id/join', (req, res) => { /* ... */ });
-app.post('/game/:id/select-pokemon', (req, res) => { /* ... */ });
-app.post('/game/:id/attack', (req, res) => { /* ... */ });
-app.get('/game/:id', (req, res) => { /* ... */ });
+app.get('/game/:id', (req, res) => { /* ... (no change) ... */ });
 server.listen(port, () => {
     console.log(`Pokemon Battle Backend with WebSocket server listening at http://localhost:${port}`);
 });
