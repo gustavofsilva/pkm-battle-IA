@@ -154,7 +154,7 @@ function App() {
       });
       const newGameId = httpResponse.data.gameId;
       const actualMaxTeamSize = httpResponse.data.settings?.maxTeamSize || ABSOLUTE_MAX_TEAM_SIZE;
-      const newPlayerId = 'player1';
+      const newPlayerId = 'Silver';
 
       setGameId(newGameId);
       setPlayerId(newPlayerId);
@@ -374,7 +374,7 @@ function App() {
             <h4>Or Join Existing Game</h4>
             <div>
               <input type="text" placeholder="Enter Game ID to Join" value={joinGameIdInput} onChange={(e) => setJoinGameIdInput(e.target.value)} disabled={isLoading || isWsLoading}/>
-              <button onClick={() => joinGame(joinGameIdInput, 'player2')} disabled={isLoading || isWsLoading || !joinGameIdInput}>Join Game</button>
+              <button onClick={() => joinGame(joinGameIdInput, 'Gary')} disabled={isLoading || isWsLoading || !joinGameIdInput}>Join Game</button>
             </div>
           </div>
         )}
