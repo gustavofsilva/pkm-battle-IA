@@ -249,7 +249,13 @@ function App() {
       console.log(`Team selection (${selectedTeamNames.join(', ')}) sent. Waiting for WS update.`);
     } catch (err) {
       console.error("Error confirming team selection:", err);
-      setError(err.response?.data?.message || 'Failed to confirm team selection.');
+      const errorMessage = err.response?.data?.message || 'Failed to confirm team selection.';
+      setError(errorMessage);
+      // If a 404 error occurs (game not found) or a specific message indicates this, reset.
+      if (err.response?.status === 404 || errorMessage.toLowerCase().includes('game not found')) {
+        setMessage("Failed to find game on server. Resetting. Please create or join a new game.");
+        resetGame();
+      }
     }
   };
 
@@ -270,7 +276,21 @@ function App() {
       console.log(`Attack action with move ${moveName} sent. Waiting for WS update.`);
     } catch (err) {
       console.error("Error during attack:", err);
-      setError(err.response?.data?.message || 'Failed to perform attack.');
+      const errorMessage = err.response?.data?.message || 'Failed to perform attack.';
+      setError(errorMessage);
+      // If a 404 error occurs (game not found) or a specific message, reset.
+      if (err.response?.status === 404 || errorMessage.toLowerCase().includes('game not found')) {
+        setMessage("Failed to find game on server for attack. Resetting. Please create or join a new game.");
+        resetGame();
+      }
+      // Additionally, if the error message indicates opponent disconnected
+      else if (errorMessage.toLowerCase().includes('opponent not connected')) {
+         // If gameData exists and state is not already reflecting this, update message.
+         // updateFullGameState should ideally handle this via WebSocket.
+         if (gameData && gameData.state !== 'opponent_disconnected') {
+             setMessage("Opponent seems to have disconnected. Waiting for server update or try refreshing.");
+         }
+      }
     }
   };
 
