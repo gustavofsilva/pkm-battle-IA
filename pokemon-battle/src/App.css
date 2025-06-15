@@ -3,6 +3,9 @@
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  /* Ensure #root complements the body styles from index.css */
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 .logo {
@@ -12,10 +15,12 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  /* Updated drop-shadow to use the new primary color */
+  filter: drop-shadow(0 0 2em var(--primary-color));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  /* Updated drop-shadow to use the new secondary color for React logo */
+  filter: drop-shadow(0 0 2em var(--secondary-color));
 }
 
 @keyframes logo-spin {
@@ -35,8 +40,24 @@
 
 .card {
   padding: 2em;
+  background-color: #fff; /* Example: Use a light card background */
+  border-radius: 8px; /* Add rounded corners to cards */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Add subtle shadow to cards */
 }
 
 .read-the-docs {
-  color: #888;
+  color: var(--secondary-color); /* Use secondary color for this text */
 }
+
+/* Add styles for links and buttons if they are specific to App.css */
+/* For example: */
+/*
+.app-button {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+}
+
+.app-link {
+  color: var(--primary-color);
+}
+*/

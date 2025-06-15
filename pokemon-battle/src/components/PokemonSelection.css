@@ -1,45 +1,47 @@
+/* PokemonSelection.css */
 .pokemon-selection-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.7); /* Slightly darker overlay */
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 900;
+  font-family: var(--font-family); /* Global font */
 }
 
 .pokemon-selection-container {
-  font-family: 'Arial', sans-serif;
-  background-color: #ffffff;
+  font-family: var(--font-family); /* Ensure global font is inherited */
+  background-color: var(--background-color); /* Global background */
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
   padding: 20px;
   width: 85vw;
   max-width: 1000px;
-  height: 80vh;
-  max-height: 700px;
+  height: 85vh; /* Increased height slightly */
+  max-height: 750px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.pokemon-selection-container h2 {
+.pokemon-selection-container h2 { /* Main Title */
   text-align: center;
-  color: #333;
+  color: var(--primary-color); /* Themed title */
   margin-top: 5px;
   margin-bottom: 15px;
   font-size: 1.8em;
 }
 
 .pokemon-selection-error {
-  color: #e74c3c;
+  color: #e74c3c; /* Keep standard error red */
   text-align: center;
   margin-bottom: 10px;
   font-weight: bold;
-  min-height: 1.2em; /* Reserve space for error message */
+  min-height: 1.2em;
 }
 
 .selection-main-area {
@@ -54,33 +56,53 @@
   flex: 2;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #eee;
+  overflow: hidden; /* Keep this, but children might overflow scroll */
+  border: 1px solid #ddd;
   border-radius: 8px;
   padding: 10px;
-  background-color: #f9f9f9;
+  background-color: #ffffff;
+  position: relative; /* For background preview positioning */
 }
 
-.available-pokemon-panel h3 {
+.pokemon-hover-background-preview {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  opacity: 0.12; /* Subtle enough not to obscure */
+  z-index: 0; /* Behind content */
+  pointer-events: none; /* So it doesn't interfere with mouse events */
+  transition: background-image 0.2s ease-in-out; /* Smooth transition */
+}
+
+
+.available-pokemon-panel > h3 { /* "Available Pokémon" Title */
   margin-top: 0;
   margin-bottom: 10px;
   text-align: center;
-  color: #555;
+  color: var(--primary-color);
+  position: relative; /* Ensure title is on top */
+  z-index: 1;
 }
 
 .pokemon-search-input {
-  width: calc(100% - 20px); /* Full width minus padding */
+  width: calc(100% - 20px);
   padding: 10px;
-  margin: 0 auto 15px auto; /* Centered with margin bottom */
+  margin: 0 auto 15px auto;
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 1em;
-  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+  box-sizing: border-box;
+  color: var(--text-color);
+  background-color: #fff;
+  position: relative; /* Ensure search input is on top */
+  z-index: 1;
 }
 .pokemon-search-input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 8px var(--secondary-color);
 }
 
 
@@ -88,16 +110,21 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 12px;
-  overflow-y: auto;
+  overflow-y: auto; /* This should scroll, not the parent panel for this part */
   padding-right: 10px;
   flex-grow: 1;
+  position: relative; /* Ensure list is on top */
+  z-index: 1;
+  background-color: transparent; /* Allow panel background (or preview) to show through */
 }
 
 .no-results-message {
     text-align: center;
     padding: 20px;
-    color: #777;
+    color: var(--text-color);
     font-style: italic;
+    position: relative; /* Ensure on top */
+    z-index: 1;
 }
 
 .pokemon-card-select {
@@ -106,28 +133,37 @@
   border-radius: 8px;
   text-align: center;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
-  background-color: #fff;
+  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s, background-color 0.2s;
+  background-color: rgba(249, 249, 249, 0.85); /* Slightly transparent light bg for cards */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative; /* Ensure cards are above the panel's background preview if it were z-index 0 on list */
+  z-index: 1; /* Explicitly above the .pokemon-hover-background-preview if it was inside the list (it's not) */
 }
 
 .pokemon-card-select:hover:not(.disabled) {
   transform: scale(1.06);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  border-color: var(--secondary-color);
 }
 
 .pokemon-card-select.selected {
-  border-color: #27ae60;
-  box-shadow: 0 0 12px rgba(39, 174, 96, 0.7);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 12px var(--primary-color);
+  background-color: #e7f5ff; /* Solid selected background */
 }
 
 .pokemon-card-select.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background-color: #f0f0f0;
+  background-color: rgba(224, 224, 224, 0.8);
 }
 .pokemon-card-select.max-reached:not(.selected) {
   opacity: 0.6;
   cursor: default;
+  border-color: #aaa;
 }
 
 
@@ -136,33 +172,67 @@
   height: 70px;
   margin-bottom: 5px;
   image-rendering: pixelated;
+  background-color: rgba(255,255,255,0.3);
+  border-radius: 4px;
 }
 .pokemon-card-select .name {
   margin: 0;
   font-weight: bold;
   font-size: 1em;
+  color: var(--primary-color);
 }
 .pokemon-card-select .type {
   margin: 5px 0 0;
   font-size: 0.75em;
-  color: #555;
+  color: var(--text-color);
 }
+
+.pokemon-card-select .type span {
+  display: inline-block;
+  padding: 2px 6px;
+  margin: 1px;
+  border-radius: 10px;
+  font-size: 0.9em;
+  color: white;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+}
+
+.type-grass { background-color: #78C850 !important; }
+.type-fire { background-color: #F08030 !important; }
+.type-water { background-color: #6890F0 !important; }
+.type-bug { background-color: #A8B820 !important; }
+.type-normal { background-color: #A8A878 !important; }
+.type-poison { background-color: #A040A0 !important; }
+.type-electric { background-color: #F8D030 !important; }
+.type-ground { background-color: #E0C068 !important; }
+.type-fairy { background-color: #EE99AC !important; }
+.type-fighting { background-color: #C03028 !important; }
+.type-psychic { background-color: #F85888 !important; }
+.type-rock { background-color: #B8A038 !important; }
+.type-ghost { background-color: #705898 !important; }
+.type-ice { background-color: #98D8D8 !important; }
+.type-dragon { background-color: #7038F8 !important; }
+.type-steel { background-color: #B8B8D0 !important; }
+.type-dark { background-color: #705848 !important; }
+.type-flying { background-color: #A890F0 !important; }
 
 
 .selected-team-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  border: 1px solid #eee;
+  border: 1px solid #ddd;
   border-radius: 8px;
   padding: 10px;
-  background-color: #f0f8ff;
+  background-color: #e7f5ff;
+  position: relative; /* Ensure this panel's content is above any potential global background if container were transparent */
+  z-index: 1;
 }
 .selected-team-panel h3 {
   margin-top: 0;
   margin-bottom: 10px;
   text-align: center;
-  color: #333;
+  color: var(--primary-color);
 }
 
 .selected-team-slots {
@@ -175,20 +245,22 @@
 }
 
 .team-slot {
-  border: 1px dashed #ccc;
+  border: 2px dashed var(--primary-color);
   border-radius: 8px;
   padding: 8px;
-  min-height: 100px;
+  min-height: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
+  background-color: rgba(255,255,255,0.7);
   text-align: center;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 .team-slot.filled {
   border-style: solid;
-  border-color: #27ae60;
+  border-color: var(--primary-color);
+  background-color: #fff;
 }
 .team-slot img {
   width: 60px;
@@ -199,50 +271,59 @@
 .team-slot .name {
   font-size: 0.9em;
   font-weight: bold;
+  color: var(--primary-color);
 }
 .team-slot .empty-text {
   font-size: 0.8em;
-  color: #888;
+  color: var(--text-color);
+  opacity: 0.7;
 }
 
 
 .confirm-selection-button-container {
   padding-top: 15px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #ddd;
   text-align: center;
+  position: relative; /* Ensure button area is on top */
+  z-index: 1;
 }
 
 .confirm-selection-button {
   padding: 12px 30px;
-  background-color: #3498db;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 5px;
   font-size: 1.1em;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 .confirm-selection-button:hover:not(:disabled) {
-  background-color: #2980b9;
+  background-color: darken(var(--primary-color), 10%);
+  box-shadow: 0 0 8px var(--secondary-color);
 }
 
 .confirm-selection-button:disabled {
-  background-color: #bdc3c7;
+  background-color: #aaa;
+  color: #555;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .confirmed-party-display {
   text-align: center;
   margin: 20px 0;
   padding: 20px;
-  background-color: #e6f7ff;
-  border: 1px solid #b3e0ff;
+  background-color: var(--background-color);
+  border: 1px solid var(--primary-color);
   border-radius: 8px;
+  position: relative; /* Ensure this display is on top */
+  z-index: 1;
 }
 
 .confirmed-party-display h3 {
-  color: #007bff;
+  color: var(--primary-color);
   margin-bottom: 15px;
 }
 
@@ -257,20 +338,24 @@
 
 .confirmed-party-item {
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #ddd;
   border-radius: 5px;
   text-align: center;
   width: 110px;
   background-color: #fff;
+  color: var(--text-color);
 }
 
 .confirmed-party-item img {
   width: 70px;
   height: 70px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
 }
 
 .confirmed-party-item p {
   margin: 5px 0 0;
   font-size: 0.9em;
   font-weight: bold;
+  color: var(--primary-color);
 }

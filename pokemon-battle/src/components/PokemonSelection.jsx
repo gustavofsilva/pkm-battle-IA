@@ -414,6 +414,7 @@ function PokemonSelection({ onTeamConfirmed, playerId, gameData, isLoading: prop
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hoveredPokemonSprite, setHoveredPokemonSprite] = useState('');
 
   const gameMaxTeamSize = gameData?.maxTeamSize || DEFAULT_MAX_TEAM_SIZE;
   const currentPlayerInGame = gameData?.players?.find(p => p.id === playerId);
@@ -474,6 +475,10 @@ function PokemonSelection({ onTeamConfirmed, playerId, gameData, isLoading: prop
     }
   };
 
+  const handlePokemonCardHover = (spriteUrl) => {
+    setHoveredPokemonSprite(spriteUrl);
+  };
+
   const isLoading = propIsLoading || isSubmitting;
 
   const filteredPokemonList = AVAILABLE_POKEMON.filter(pokemon =>
@@ -507,6 +512,12 @@ function PokemonSelection({ onTeamConfirmed, playerId, gameData, isLoading: prop
         ) : (
           <div className="selection-main-area">
             <div className="available-pokemon-panel">
+              {hoveredPokemonSprite && (
+                <div
+                  className="pokemon-hover-background-preview"
+                  style={{ backgroundImage: `url(${hoveredPokemonSprite})` }}
+                />
+              )}
               <h3>Available Pokemon</h3>
               <input
                 type="text"
@@ -534,6 +545,8 @@ function PokemonSelection({ onTeamConfirmed, playerId, gameData, isLoading: prop
                       key={pokemon.id}
                       className={cardClass}
                       onClick={() => !isDisabled && handleSelectPokemon(pokemon)}
+                      onMouseEnter={() => handlePokemonCardHover(pokemon.sprite)}
+                      onMouseLeave={() => handlePokemonCardHover('')}
                       title={pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)} // Tooltip with name
                     >
                       <img src={pokemon.sprite} alt={pokemon.name} />
