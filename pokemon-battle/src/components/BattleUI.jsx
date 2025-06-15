@@ -29,7 +29,6 @@ const PartyStatusDisplay = ({ party, activePokemonIndex }) => {
   return <div className="party-status-display">{partySlots}</div>;
 };
 
-// Helper to get status abbreviation
 const getStatusAbbreviation = (status) => {
     if (!status) return '';
     switch (status.toLowerCase()) {
@@ -38,6 +37,7 @@ const getStatusAbbreviation = (status) => {
         case 'paralysis': return 'PAR';
         case 'sleep': return 'SLP';
         case 'freeze': return 'FRZ';
+        case 'confusion': return 'CNF'; // Added confusion
         default: return status.toUpperCase().substring(0, 3);
     }
 };
@@ -71,8 +71,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
   const isPlayerTurn = gameData.state === 'battle' && gameData.turn === playerId;
   const canPlayerAttack = isPlayerTurn &&
                           playerActivePokemon && playerActivePokemon.status !== 'fainted' &&
-                          opponentActivePokemon && opponentActivePokemon.status !== 'fainted';
-
+                          (!opponentActivePokemon || opponentActivePokemon.status !== 'fainted'); // Allow attack if opponent has no active (e.g. mid-switch) but UI should ideally prevent this.
 
   return (
     <div className="battle-container">
@@ -140,7 +139,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
                   </span>
                 )}
                 <span className="pokemon-status-ingame">({opponentActivePokemon.status})</span>
-              </h4>
+                </h4>
               <div className="hp-bar-container">
                 <div
                   className="hp-bar opponent-hp-bar"
@@ -165,18 +164,21 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
         <div className="move-list-container">
           <h4>Choose a Move:</h4>
           <div className="moves-grid">
-            {(playerActivePokemon.details.moves || []).map((move, index) => (
-              <button
-                key={index}
-                className={`move-button type-${move.type.toLowerCase()}`}
-                onClick={() => onAttack(index)}
-                disabled={isLoading || !canPlayerAttack}
-                title={`Power: ${move.power || '-'}, Acc: ${move.accuracy || '-'}, PP: ${move.pp}`}
-              >
-                <span className="move-name">{move.name}</span>
-                <span className="move-details">Type: {move.type} | PP: {move.pp}</span>
-              </button>
-            ))}
+            {(playerActivePokemon.details.moves || []).map((move, index) => {
+              const hasNoPP = move.currentPp <= 0;
+              return (
+                <button
+                  key={index}
+                  className={`move-button type-${move.type.toLowerCase()} ${hasNoPP ? 'no-pp' : ''}`}
+                  onClick={() => onAttack(index)}
+                  disabled={isLoading || !canPlayerAttack || hasNoPP}
+                  title={`Power: ${move.power || '-'}, Acc: ${move.accuracy || '-'}, PP: ${move.currentPp}/${move.pp}`}
+                >
+                  <span className="move-name">{move.name}</span>
+                  <span className="move-details">Type: {move.type} | PP: {move.currentPp}/{move.pp}</span>
+                </button>
+              );
+            })}
             {(!playerActivePokemon.details.moves || playerActivePokemon.details.moves.length === 0) && <p>No moves available!</p>}
           </div>
         </div>
