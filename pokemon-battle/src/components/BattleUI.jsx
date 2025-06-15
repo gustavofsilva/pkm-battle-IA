@@ -186,7 +186,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
                  disabled={isLoading || !canAttack}
                  className="attack-button"
                >
-                 {move.name} (Power: {move.power || 'N/A'})
+                 {move.name} (Type: {move.type || 'Unknown'}, Power: {move.power || 'N/A'})
                </button>
              ))
            ) : (
