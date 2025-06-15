@@ -84,7 +84,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
 
       {gameData.state !== 'finished' && (
         <p className="turn-indicator">
-          {gameData.turn === playerId ? "Your Turn" : (gameData.turn ? `Opponent's Turn (${opponentInfo.id.substring(0,6)}...)` : "Waiting...")}
+          {gameData.turn === playerId ? "Your Turn" : (gameData.turn ? `Opponent's Turn (${opponentInfo?.id || 'Opponent'})` : "Waiting...")}
         </p>
       )}
 
@@ -98,7 +98,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
               style={{ backgroundImage: `url(${playerActivePokemon.details.sprite})` }}
             />
           )}
-          <h3>You ({playerInfo.id.substring(0,6)}...)</h3>
+          <h3>You ({playerInfo?.id || 'Player'})</h3>
           <PartyStatusDisplay party={playerInfo.party} activePokemonIndex={playerInfo.activePokemonIndex} />
           {playerActivePokemon && playerActivePokemon.details && (
             <>
@@ -126,7 +126,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
               style={{ backgroundImage: `url(${opponentActivePokemon.details.sprite})` }}
             />
           )}
-          <h3>Opponent ({opponentInfo.id.substring(0,6)}...)</h3>
+          <h3>Opponent ({opponentInfo?.id || 'Opponent'})</h3>
           <PartyStatusDisplay party={opponentInfo.party} activePokemonIndex={opponentInfo.activePokemonIndex} />
           {opponentActivePokemon && opponentActivePokemon.details ? (
             <>
