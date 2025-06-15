@@ -257,7 +257,7 @@ app.post('/game/:id/select-pokemon', (req, res) => {
 // ... (attack route and other routes remain the same for now) ...
 app.post('/game/:id/attack', (req, res) => {
     const gameId = req.params.id;
-    const { playerId, attackName } = req.body;
+    const { playerId, moveName } = req.body; // 1. Update Request Body Destructuring
 
     if (!games[gameId]) return res.status(404).json({ message: 'Game not found.' });
     const game = games[gameId];
@@ -276,6 +276,21 @@ app.post('/game/:id/attack', (req, res) => {
     const attackerActivePokemon = attackerPlayer.party[attackerPlayer.activePokemonIndex];
     const defenderActivePokemon = defenderPlayer.party[defenderPlayer.activePokemonIndex];
 
+    // 2. Validate moveName Input
+    if (!moveName) {
+        return res.status(400).json({ message: 'Move name not provided.' });
+    }
+
+    // 3. Find the Selected Move and Validate
+    const attackerMoves = attackerActivePokemon.details.moves;
+    if (!attackerMoves || attackerMoves.length === 0) {
+        return res.status(400).json({ message: `${attackerActivePokemon.details.name} has no moves defined.` });
+    }
+    const selectedMove = attackerMoves.find(move => move.name.toLowerCase() === moveName.toLowerCase());
+    if (!selectedMove) {
+        return res.status(400).json({ message: `Move '${moveName}' not found for ${attackerActivePokemon.details.name}.` });
+    }
+
     if (attackerActivePokemon.status === 'fainted')
         return res.status(400).json({message: 'Your active Pokemon is fainted and cannot attack!'});
     if (defenderActivePokemon.status === 'fainted')
@@ -287,13 +302,22 @@ app.post('/game/:id/attack', (req, res) => {
         return res.status(400).json({ message: 'Opponent not connected. Cannot attack.', currentGameState: game.state });
     }
 
-    let damage = Math.max(1, Math.floor(attackerActivePokemon.details.stats.attack * (Math.random()*0.2 + 0.9)) - Math.floor(defenderActivePokemon.details.stats.defense * 0.5));
-    if (attackerActivePokemon.details.stats.attack > defenderActivePokemon.details.stats.defense / 2 && damage <= 0) damage = 1 + Math.floor(Math.random()*5);
-    else if (damage <= 0) damage = 1;
+    // 4. Modify Damage Calculation
+    const baseAttack = attackerActivePokemon.details.stats.attack;
+    const movePower = selectedMove.power;
+    const defenseStat = defenderActivePokemon.details.stats.defense;
+
+    // Simplified damage formula: (Base Attack + Move Power) vs Defense
+    // Randomness factor: 0.85 to 1.15 of calculated damage
+    // Defense reduces damage more significantly.
+    // Ensure minimum damage is 1.
+    let calculatedDamage = Math.floor(((baseAttack * 0.5 + movePower * 0.75) * (Math.random() * 0.3 + 0.85)) - (defenseStat * 0.4));
+    let damage = Math.max(1, calculatedDamage);
 
     defenderActivePokemon.currentHp -= damage;
-    const usedAttackName = attackName || "basic attack";
-    console.log(`[Game ${gameId}] ${playerId} (${attackerActivePokemon.details.name}) attacked ${defenderPlayer.id} (${defenderActivePokemon.details.name}) for ${damage}. Defender HP: ${defenderActivePokemon.currentHp}`);
+    const usedAttackName = selectedMove.name; // 5. Update Logging (variable part)
+    // Log message updated slightly to reflect "used" a move
+    console.log(`[Game ${gameId}] ${playerId} (${attackerActivePokemon.details.name}) used ${usedAttackName} on ${defenderPlayer.id} (${defenderActivePokemon.details.name}) for ${damage} damage. Defender HP: ${defenderActivePokemon.currentHp}`);
 
     let message;
     if (defenderActivePokemon.currentHp <= 0) {

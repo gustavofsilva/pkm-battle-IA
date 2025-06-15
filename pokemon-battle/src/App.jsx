@@ -236,14 +236,21 @@ function App() {
     }
   };
 
-  const handleAttack = async () => { /* ... existing handleAttack ... */
+  const handleAttack = async (moveName) => { // 1. Modify function signature
     if (!gameId || !playerId || (gameData && gameData.turn !== playerId)) {
       setError('Not your turn or game not ready.'); return;
     }
+    // 3. Add Validation for moveName
+    if (!moveName) {
+      console.error("handleAttack called without a moveName.");
+      setError("Please select a move to attack.");
+      return;
+    }
     setError('');
     try {
-      await axios.post(`${API_BASE_URL}/game/${gameId}/attack`, { playerId: playerId });
-      console.log('Attack action sent. Waiting for WS update.');
+      // 2. Add moveName to Payload
+      await axios.post(`${API_BASE_URL}/game/${gameId}/attack`, { playerId: playerId, moveName: moveName });
+      console.log(`Attack action with move ${moveName} sent. Waiting for WS update.`);
     } catch (err) {
       console.error("Error during attack:", err);
       setError(err.response?.data?.message || 'Failed to perform attack.');
