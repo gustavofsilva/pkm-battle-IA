@@ -28,7 +28,8 @@ const PartyStatusDisplay = ({ party, activePokemonIndex }) => {
       />
     );
   }
-  return <div className="party-status-display">{partySlots}</div>;
+  // Ensure PartyStatusDisplay itself can be styled with z-index if needed
+  return <div className="party-status-display" style={{ position: 'relative', zIndex: 1 }}>{partySlots}</div>;
 };
 
 
@@ -59,15 +60,10 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
   if (!playerActivePokemon || !playerActivePokemon.details) {
     return <p className="battle-loading-message">Your active Pokémon data is missing. Game state: {gameData.state}</p>;
   }
-   if (!opponentActivePokemon || !opponentActivePokemon.details) {
-    // This can happen if opponent's active Pokemon fainted and they are in 'waiting_for_switch'
-    if (gameData.state === 'waiting_for_switch' && gameData.turn === opponentInfo.id) {
-        // UI should show opponent is switching, BattleUI might not be the primary view then
-        // or it shows a placeholder for opponent's active Pokemon.
-    } else if (gameData.state !== 'finished'){ // Don't show error if game is finished
-       return <p className="battle-loading-message">Opponent's active Pokémon data is missing. Game state: {gameData.state}</p>;
-    }
-  }
+   // Opponent's active Pokemon can be missing if it fainted and they are switching, or if game ended.
+   // So we don't strictly need to return loading message for opponent if details are missing,
+   // but we do need to ensure we don't crash trying to access details.sprite later.
+   // The rendering logic for opponent card already handles this.
 
 
   const getHPRatio = (currentHp, maxHp) => {
@@ -78,7 +74,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
   const canAttack = gameData.state === 'battle' &&
                     gameData.turn === playerId &&
                     playerActivePokemon && playerActivePokemon.status !== 'fainted' &&
-                    opponentActivePokemon && opponentActivePokemon.status !== 'fainted';
+                    opponentActivePokemon && opponentActivePokemon.status !== 'fainted'; // Ensure opponent also not fainted for attack logic
 
   return (
     <div className="battle-container">
@@ -88,7 +84,7 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
 
       {gameData.state !== 'finished' && (
         <p className="turn-indicator">
-          {gameData.turn === playerId ? "Your Turn" : (gameData.turn ? `Opponent's Turn (${gameData.turn})` : "Waiting...")}
+          {gameData.turn === playerId ? "Your Turn" : (gameData.turn ? `Opponent's Turn (${opponentInfo.id.substring(0,6)}...)` : "Waiting...")}
         </p>
       )}
 
@@ -96,7 +92,13 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
       <div className="pokemon-display-area">
         {/* Player's Side */}
         <div className={`pokemon-card player-card ${gameData.turn === playerId && gameData.state === 'battle' ? 'active-turn-battle' : ''}`}>
-          <h3>You ({playerInfo.id})</h3>
+          {playerActivePokemon && playerActivePokemon.details && playerActivePokemon.details.sprite && (
+            <div
+              className="card-background-image-display"
+              style={{ backgroundImage: `url(${playerActivePokemon.details.sprite})` }}
+            />
+          )}
+          <h3>You ({playerInfo.id.substring(0,6)}...)</h3>
           <PartyStatusDisplay party={playerInfo.party} activePokemonIndex={playerInfo.activePokemonIndex} />
           {playerActivePokemon && playerActivePokemon.details && (
             <>
@@ -118,7 +120,13 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
 
         {/* Opponent's Side */}
         <div className={`pokemon-card opponent-card ${gameData.turn !== playerId && gameData.state === 'battle' ? 'active-turn-battle' : ''}`}>
-          <h3>Opponent ({opponentInfo.id})</h3>
+          {opponentActivePokemon && opponentActivePokemon.details && opponentActivePokemon.details.sprite && (
+            <div
+              className="card-background-image-display"
+              style={{ backgroundImage: `url(${opponentActivePokemon.details.sprite})` }}
+            />
+          )}
+          <h3>Opponent ({opponentInfo.id.substring(0,6)}...)</h3>
           <PartyStatusDisplay party={opponentInfo.party} activePokemonIndex={opponentInfo.activePokemonIndex} />
           {opponentActivePokemon && opponentActivePokemon.details ? (
             <>
@@ -142,24 +150,34 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
         </div>
       </div>
 
-      {gameData.state === 'battle' && gameData.turn === playerId && (
-        <button
-          onClick={onAttack}
-          disabled={isLoading || !canAttack}
-          className="attack-button"
-        >
-          {isLoading ? 'Attacking...' : 'Attack!'}
-        </button>
+      {gameData.state === 'battle' && gameData.turn === playerId && playerActivePokemon && playerActivePokemon.details && (
+        // Added check for playerActivePokemon.details to prevent error if it's missing when rendering attacks
+        <div className="attack-button-container" style={{position: 'relative', zIndex: 1}}>
+           <h3>Choose an Attack:</h3>
+           {playerActivePokemon.details.moves && playerActivePokemon.details.moves.map((move) => (
+            <button
+              key={move.name}
+              onClick={() => onAttack(move.name)} // Assuming onAttack takes move name or ID
+              disabled={isLoading || !canAttack}
+              className="attack-button"
+            >
+              {move.name} (Power: {move.power || 'N/A'})
+            </button>
+          ))}
+          {(!playerActivePokemon.details.moves || playerActivePokemon.details.moves.length === 0) && <p>No moves available.</p>}
+        </div>
       )}
 
       {gameData.state === 'finished' && (
         <div className="game-over-message">
           <h3>{gameData.winner === playerId ? "🎉 Congratulations, you won! 🎉" : "💔 You lost. Better luck next time! 💔"}</h3>
+          {/* Consider adding a button to go back to lobby or start new game */}
         </div>
       )}
        {gameData.state === 'opponent_disconnected' && (
         <div className="opponent-disconnected-message">
-            <p>Opponent has disconnected. Waiting for them to rejoin...</p>
+            <p>Opponent has disconnected. You win by default, or wait for them to rejoin if implemented.</p>
+            {/* Consider adding a button to go back to lobby */}
         </div>
       )}
     </div>
