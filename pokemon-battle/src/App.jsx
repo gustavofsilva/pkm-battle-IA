@@ -26,6 +26,23 @@ function App() {
   const updateFullGameState = (newGameData, sourceMessage = "") => {
     console.log(`[StateUpdate] Source: ${sourceMessage}`, newGameData);
     setGameData(newGameData);
+
+    // --- START OF ADDED LOGGING ---
+    console.log('[App.jsx] Updated gameData:', newGameData);
+    const updatedPlayer = newGameData.players?.find(p => p.id === playerId); // playerId is from App's state
+    if (updatedPlayer && updatedPlayer.party && updatedPlayer.activePokemonIndex !== -1 && updatedPlayer.activePokemonIndex < updatedPlayer.party.length) {
+        const activePkm = updatedPlayer.party[updatedPlayer.activePokemonIndex];
+        if (activePkm && activePkm.details) {
+            console.log('[App.jsx] Active Pokemon details in App:', JSON.stringify(activePkm.details, null, 2));
+            console.log('[App.jsx] Active Pokemon MOVES in App:', JSON.stringify(activePkm.details.moves, null, 2));
+        } else {
+            console.log('[App.jsx] Active Pokemon or its details are missing in App.');
+        }
+    } else {
+      console.log('[App.jsx] updatedPlayer, party, or activePokemonIndex not valid for logging active Pokemon details in App.jsx.');
+    }
+    // --- END OF ADDED LOGGING ---
+
     setGameState(newGameData.state);
 
     let statusMessage = "";

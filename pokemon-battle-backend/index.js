@@ -215,6 +215,16 @@ app.post('/game/:id/select-pokemon', (req, res) => {
     const newParty = [];
     for (const name of pokemonNames) {
         const pokemonDetails = getPokemonDetails(name);
+        // --- START OF ADDED LOGGING ---
+        console.log(`[DEBUG /select-pokemon] For name: ${name}, pokemonDetails fetched:`, JSON.stringify(pokemonDetails, null, 2));
+        if (pokemonDetails && pokemonDetails.moves) {
+            console.log(`[DEBUG /select-pokemon] Moves for ${name}:`, JSON.stringify(pokemonDetails.moves, null, 2));
+        } else if (pokemonDetails) {
+            console.warn(`[DEBUG /select-pokemon] NO MOVES found for ${name} in pokemonDetails object that HAS details.`);
+        } else {
+            console.warn(`[DEBUG /select-pokemon] NO DETAILS found for ${name}. getPokemonDetails returned null.`);
+        }
+        // --- END OF ADDED LOGGING ---
         if (!pokemonDetails) return res.status(400).json({ message: `Invalid Pokemon name: ${name}.` });
         newParty.push({
             details: pokemonDetails, currentHp: pokemonDetails.stats.hp,

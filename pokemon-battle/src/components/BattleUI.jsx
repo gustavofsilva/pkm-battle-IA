@@ -76,6 +76,27 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
                     playerActivePokemon && playerActivePokemon.status !== 'fainted' &&
                     opponentActivePokemon && opponentActivePokemon.status !== 'fainted'; // Ensure opponent also not fainted for attack logic
 
+  // --- START OF MODIFIED LOGGING (before return) ---
+  const activePokemonMoves = playerActivePokemon?.details?.moves;
+  console.log('[BattleUI.jsx] Assigned activePokemonMoves variable:', JSON.stringify(activePokemonMoves, null, 2)); // New log for the variable
+
+  console.log('[BattleUI.jsx] gameData received (full):', JSON.stringify(gameData, null, 2)); // Renamed for clarity
+  if (playerInfo && playerInfo.party && playerInfo.activePokemonIndex !== -1 && playerInfo.activePokemonIndex < playerInfo.party.length) {
+      const activePkmFromBattleUI = playerInfo.party[playerInfo.activePokemonIndex];
+      if (activePkmFromBattleUI && activePkmFromBattleUI.details) {
+          console.log('[BattleUI.jsx] playerActivePokemon.details:', JSON.stringify(activePkmFromBattleUI.details, null, 2));
+          console.log('[BattleUI.jsx] playerActivePokemon.details.moves:', JSON.stringify(activePkmFromBattleUI.details.moves, null, 2));
+          if (!activePkmFromBattleUI.details.moves || activePkmFromBattleUI.details.moves.length === 0) {
+              console.warn('[BattleUI.jsx] MOVES ARE MISSING OR EMPTY HERE!');
+          }
+      } else {
+          console.log('[BattleUI.jsx] Active Pokemon or its details are missing in BattleUI playerInfo.');
+      }
+  } else {
+      console.log('[BattleUI.jsx] playerInfo, party, or activePokemonIndex is not set as expected or index out of bounds.');
+  }
+  // --- END OF ADDED LOGGING (before return) ---
+
   return (
     <div className="battle-container">
       <h2 className="battle-title">
@@ -151,21 +172,40 @@ function BattleUI({ gameData, playerId, onAttack, isLoading }) {
       </div>
 
       {gameData.state === 'battle' && gameData.turn === playerId && playerActivePokemon && playerActivePokemon.details && (
-        // Added check for playerActivePokemon.details to prevent error if it's missing when rendering attacks
+      <>
+        {/* This log uses the new variable too for consistency in what's being checked by the log vs. the code */}
+        {console.log('[BattleUI.jsx] Rendering moves section. activePokemonMoves variable:', activePokemonMoves, 'Length:', activePokemonMoves ? activePokemonMoves.length : 'N/A')}
+
         <div className="attack-button-container" style={{position: 'relative', zIndex: 1}}>
            <h3>Choose an Attack:</h3>
-           {playerActivePokemon.details.moves && playerActivePokemon.details.moves.map((move) => (
-            <button
-              key={move.name}
-              onClick={() => onAttack(move.name)} // Assuming onAttack takes move name or ID
-              disabled={isLoading || !canAttack}
-              className="attack-button"
-            >
-              {move.name} (Power: {move.power || 'N/A'})
-            </button>
-          ))}
-          {(!playerActivePokemon.details.moves || playerActivePokemon.details.moves.length === 0) && <p>No moves available.</p>}
+           {activePokemonMoves && activePokemonMoves.length > 0 ? ( // Use variable here
+             activePokemonMoves.map((move) => ( // Use variable here
+               <button
+                 key={move.name}
+                 onClick={() => onAttack(move.name)}
+                 disabled={isLoading || !canAttack}
+                 className="attack-button"
+               >
+                 {move.name} (Power: {move.power || 'N/A'})
+               </button>
+             ))
+           ) : (
+             <>
+               <p>No moves available.</p>
+               {/* Diagnostic logs using activePokemonMoves or the original path for clarity */}
+               {playerActivePokemon && playerActivePokemon.details && activePokemonMoves && activePokemonMoves.length === 0 &&
+                 console.warn('[BattleUI.jsx] activePokemonMoves is an EMPTY ARRAY.')
+               }
+               {playerActivePokemon && playerActivePokemon.details && !playerActivePokemon.details.hasOwnProperty('moves') && // Check original path for this specific warning
+                 console.warn('[BattleUI.jsx] playerActivePokemon.details does NOT HAVE a "moves" property (so activePokemonMoves is undefined).')
+               }
+                {!activePokemonMoves && !(playerActivePokemon && playerActivePokemon.details) && // If activePokemonMoves is falsy due to missing details
+                 console.warn('[BattleUI.jsx] activePokemonMoves is undefined because playerActivePokemon or its .details are missing.')
+               }
+             </>
+           )}
         </div>
+      </>
       )}
 
       {gameData.state === 'finished' && (
