@@ -52,7 +52,7 @@ const POKEMON_DATA_FRONTEND = {
     "id": 18, "name": "pidgeot",
     "stats": { "hp": 83, "attack": 80, "defense": 75, "specialAttack": 70, "specialDefense": 70, "speed": 101 },
     "types": ["normal", "flying"], "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/18.png",
-    "moves": [ // Pidgeot might have Wing Attack instead of Strength in some lists, ensuring consistency
+    "moves": [
       { "name": "Tackle", "power": 40, "type": "Normal" }, { "name": "Quick Attack", "power": 40, "type": "Normal" },
       { "name": "Wing Attack", "power": 60, "type": "Flying" }, { "name": "Hyper Beam", "power": 150, "type": "Normal" }
     ]
